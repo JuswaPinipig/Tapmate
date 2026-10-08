@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Student Wallet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="studentwallet.css">
+</head>
+
+<body>
+    <div class="shell init" id="shell">
+        <aside class="side" id="side" aria-label="Main menu">
+            <div class="side-head">
+                <img class="logo" src="../../LOGIN/assets/tapmate%20logo.png" alt="TapMate">
+                <button class="icon-btn" id="collapse" aria-expanded="true" aria-label="Collapse menu">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg>
+                </button>
+            </div>
+            <nav class="nav">
+                <a href="#wallet" data-view="wallet" title="Student Wallet"><svg viewBox="0 0 24 24">
+                        <path d="M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+                        <path d="M3 7l12-3v3" />
+                        <circle cx="16.5" cy="13.5" r="1" />
+                    </svg><span class="lbl">Student Wallet</span></a>
+                <a href="#" data-link="HISTORY_URL" title="History"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                    </svg><span class="lbl">History</span></a>
+                <a href="#" data-link="TOPUP_URL" title="User Top Up"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 8v8M8 12h8" />
+                    </svg><span class="lbl">User Top Up</span></a>
+            </nav>
+            <div class="side-foot">
+                <button class="me" id="open-profile" title="Profile">
+                    <span class="av" id="side-av"></span>
+                    <span class="lbl me-t"><b id="side-name">–</b><small id="side-id"></small></span>
+                </button>
+                <button class="logout" id="signout" title="Log Out"><svg viewBox="0 0 24 24">
+                        <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                        <path d="M15 8l4 4-4 4M19 12H9" />
+                    </svg><span class="lbl">Log Out</span></button>
+            </div>
+        </aside>
+        <div class="scrim" id="scrim"></div>
+
+        <div class="content">
+            <header class="mbar"><button class="icon-btn dark" id="menu" aria-label="Open menu"><svg
+                        viewBox="0 0 24 24">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                    </svg></button><b>Student Wallet</b></header>
+            <main>
+                <p class="err" id="app-err" role="alert" hidden></p>
+
+                <section class="view" id="v-wallet">
+                    <div class="hello">
+                        <h1 id="hello">Student Wallet</h1>
+                        <p>Your balance, ID card and latest activity.</p>
+                    </div>
+                    <div class="grid">
+                        <section class="wallet" aria-label="Wallet balance">
+                            <div class="wallet-top">
+                                <div>
+                                    <div class="lbl-s">Wallet balance</div>
+                                    <div class="num"><small>₱</small><span id="bal">–</span></div>
+                                </div>
+                            </div>
+                            <div class="cardno lbl-s">Card number <b id="r-num">–</b></div>
+                            <div class="limit">
+                                <div class="limit-row"><span id="lim-label">Daily limit</span><b id="lim-text">–</b>
+                                </div>
+                                <div class="bar" id="lim-bar" role="progressbar" aria-label="Spent today"
+                                    aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="lim-fill"></i></div>
+                                <div class="lbl-s" id="lim-sub"></div>
+                            </div>
+                            <div class="lbl-s upd" id="bal-updated"></div>
+                        </section>
+                        <section class="card rfid-card" aria-label="Card details">
+                            <h2>Card details</h2>
+                            <div id="rfid-empty" class="empty" hidden>No RFID card is linked to your account. Visit the
+                                registrar to get one.</div>
+                            <div id="rfid-body">
+                                <div class="rfid-row"><span class="dot off" id="dot"></span>
+                                    <div><strong id="rstat">–</strong><span class="sub" id="rsub"></span></div>
+                                </div>
+                                <dl class="meta">
+                                    <div>
+                                        <dt>PIN</dt>
+                                        <dd id="r-pin">–</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Student ID</dt>
+                                        <dd id="r-sid">–</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                            <div class="pw" id="pw">
+                                <span class="dot off" id="pw-dot"></span>
+                                <span class="pw-t" id="pw-text">Parent not currently linked</span>
+                                <button type="button" class="pw-btn" id="pw-btn">Link a parent</button>
+                            </div>
+                        </section>
+                        <section class="card tx" aria-label="Recent transactions">
+                            <div class="tx-head">
+                                <h2>Recent transactions</h2><a class="link" href="#" data-link="HISTORY_URL">View
+                                    all</a>
+                            </div>
+                            <ul id="list-recent"></ul>
+                        </section>
+
+                        <!-- Pay Later lives here, in the wallet tab -->
+                        <section class="card pl wide" id="paylater" aria-label="Pay Later">
+                            <div id="pl-locked" hidden>
+                                <h2>Pay Later</h2>
+                                <div class="lock">
+                                    <svg viewBox="0 0 24 24">
+                                        <rect x="5" y="11" width="14" height="9" rx="2" />
+                                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                                    </svg>
+                                    <div><b>Locked</b>
+                                        <p>Link a parent (under Card details) to unlock Pay Later. It's emergency funds
+                                            that get added
+                                            to your tuition.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="pl-off" hidden>
+                                <h2 id="pl-title">Pay Later is off</h2>
+                                <div id="pl-rules" class="rules"></div>
+                                <p class="pd-msg" id="pl-msg" role="alert" hidden></p>
+                                <button class="btn-fill" id="pl-activate">Activate Pay Later</button>
+                            </div>
+                            <div id="pl-on" hidden>
+                                <div class="pl-head">
+                                    <h2>Pay Later is active</h2><span class="badge">Active</span>
+                                </div>
+                                <div class="stats">
+                                    <div class="stat"><small>Available</small><b id="pl-avail">–</b></div>
+                                    <div class="stat"><small>Limit</small><b id="pl-limit">–</b></div>
+                                    <div class="stat"><small>Amount due</small><b id="pl-out">–</b></div>
+                                </div>
+                                <p class="how" id="pl-due"></p>
+                                <p class="how" id="pl-uses"></p>
+                                <p class="pd-msg" id="pl-msg2" role="alert" hidden></p>
+                                <button class="btn-line" id="pl-request">Request a higher limit</button>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Profile (two boxes, same layout as the admin profile) -->
+    <div class="modal" id="profile" role="dialog" aria-modal="true" aria-labelledby="pf-title" hidden>
+        <div class="pf-dialog">
+            <div class="dlg-head">
+                <h2 id="pf-title">My profile</h2>
+                <button class="icon-btn dark" data-close aria-label="Close"><svg viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg></button>
+            </div>
+
+            <!-- Box 1: read-only (photo, name and email are managed by the admin) -->
+            <section class="pd-box pd-profile">
+                <span class="av pd-avatar" id="pf-av" aria-hidden="true"></span>
+                <div class="pd-name" id="pf-name">–</div>
+                <div class="pd-email" id="pf-email"></div>
+                <div class="pd-email" id="pf-sid"></div>
+            </section>
+
+            <!-- Box 2: PIN management (the only thing a student can change) -->
+            <section class="pd-box">
+                <h3 class="pd-h">PIN management</h3>
+                <div class="pin-meter" id="pin-meter" aria-live="polite">
+                    <b id="pin-remaining">PIN changes remaining: –</b>
+                    <small id="pin-note">You can change your PIN up to 3 times within a 24-hour period.</small>
+                </div>
+                <div class="pin-limit" id="pin-limit" hidden>
+                    <b>PIN change limit reached</b>
+                    <small id="pin-limit-text"></small>
+                </div>
+                <form id="pin-form" novalidate>
+                    <div class="pd-pins">
+                        <label><span>Current</span><input id="pin-cur" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>New</span><input id="pin-new" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>Confirm</span><input id="pin-new2" type="password" inputmode="numeric"
+                                maxlength="4" autocomplete="off" placeholder="••••"></label>
+                    </div>
+                    <p class="pd-msg" id="pin-msg" role="alert" hidden></p>
+                    <button type="submit" class="btn-fill pd-wide" id="pin-save">Change PIN</button>
+                </form>
+            </section>
+        </div>
+    </div>
+
+    <!-- Parent link popup -->
+    <div class="modal" id="plink-modal" role="dialog" aria-modal="true" aria-labelledby="pk-title" hidden>
+        <div class="pf-dialog">
+            <div class="dlg-head">
+                <h2 id="pk-title">Link a parent</h2>
+                <button class="icon-btn dark" data-close aria-label="Close"><svg viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg></button>
+            </div>
+            <section class="pd-box pk-box">
+                <p class="how">Ask your parent to scan this QR code from their TapMate parent page. If scanning doesn't
+                    work, they can type the 6-digit code instead.</p>
+                <div class="qr-box" id="qr-box" aria-label="Parent link QR code"></div>
+                <span class="code-lbl">Or enter this code</span>
+                <div class="code" id="pl-code">––– –––</div>
+                <div class="timer">New code in <b id="pl-timer">–:––</b></div>
+                <p class="pd-msg" id="plink-msg" role="alert" hidden></p>
+                <button class="btn-line" id="plink-new" type="button">Get a new code now</button>
+            </section>
+        </div>
+    </div>
+
+    <!-- Confirm -->
+    <div class="modal top" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="cf-title" hidden>
+        <div class="pf-dialog cf">
+            <div class="cf-body">
+                <h3 id="cf-title"></h3>
+                <p id="cf-text"></p>
+            </div>
+            <div class="cf-foot">
+                <button type="button" class="btn-line" id="cf-back" data-focus>Go Back</button>
+                <button type="button" class="btn-fill" id="cf-ok">Change PIN</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="config.js"></script>
+    <script src="studentwallet.js"></script>
+</body>
+
+</html>

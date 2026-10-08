@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Student Top Up</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="student-top-up.css">
+</head>
+
+<body>
+    <div class="shell init" id="shell">
+        <aside class="side" id="side" aria-label="Main menu">
+            <div class="side-head">
+                <img class="logo" src="../../LOGIN/assets/tapmate%20logo.png" alt="TapMate">
+                <button class="icon-btn" id="collapse" aria-expanded="true" aria-label="Collapse menu"><svg
+                        viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg></button>
+            </div>
+            <nav class="nav">
+                <a href="#" data-link="WALLET_URL" title="Student Wallet"><svg viewBox="0 0 24 24">
+                        <path d="M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+                        <path d="M3 7l12-3v3" />
+                        <circle cx="16.5" cy="13.5" r="1" />
+                    </svg><span class="lbl">Student Wallet</span></a>
+                <a href="#" data-link="HISTORY_URL" title="History"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                    </svg><span class="lbl">History</span></a>
+                <a href="#topup" aria-current="page" title="User Top Up"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 8v8M8 12h8" />
+                    </svg><span class="lbl">User Top Up</span></a>
+            </nav>
+            <div class="side-foot">
+                <button class="me" id="open-profile" title="Student Wallet"><span class="av" id="side-av"></span><span
+                        class="lbl me-t"><b id="side-name">–</b><small id="side-id"></small></span></button>
+                <button class="logout" id="signout" title="Log Out"><svg viewBox="0 0 24 24">
+                        <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                        <path d="M15 8l4 4-4 4M19 12H9" />
+                    </svg><span class="lbl">Log Out</span></button>
+            </div>
+        </aside>
+        <div class="scrim" id="scrim"></div>
+        <div class="content">
+            <header class="mbar"><button class="icon-btn dark" id="menu" aria-label="Open menu"><svg
+                        viewBox="0 0 24 24">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                    </svg></button><b>Student Top Up</b></header>
+            <main>
+                <p class="err" id="app-err" role="alert" hidden></p>
+                <section class="view">
+                    <div class="hello">
+                        <h1>Top up your wallet</h1>
+                        <p>Pick an amount, pay with GCash, then upload your proof of payment. We'll read the reference
+                            number from it for you.</p>
+                    </div>
+                    <div class="tu-grid">
+                        <div class="tu-left">
+                            <section class="wallet" aria-label="Current wallet balance">
+                                <div class="lbl-s">Current wallet balance</div>
+                                <div class="num"><small id="cur"></small><span id="bal">–</span></div>
+                                <div class="lbl-s upd" id="bal-updated"></div>
+                            </section>
+                            <section class="card tx" aria-label="Top-up history">
+                                <div class="tx-head">
+                                    <h2>Top-up history</h2>
+                                </div>
+                                <ul id="hist"></ul>
+                                <nav class="hist-pager" id="hist-pager" aria-label="Top-up history pages" hidden></nav>
+                            </section>
+                        </div>
+                        <form class="card tu" id="tu-form" novalidate>
+                            <div>
+                                <span class="lab">1. Choose an amount</span>
+                                <div class="chips" id="chips" role="group" aria-label="Top-up amount"></div>
+                            </div>
+                            <div class="slide" id="st-pay" inert>
+                                <div>
+                                    <div class="in">
+                                        <div class="pay">
+                                            <img id="qr" alt="GCash QR code" width="220">
+                                            <p class="how" id="pay-cap">Scan with GCash and pay the exact amount.</p>
+                                        </div>
+                                        <span class="lab">2. Upload proof of payment (.jpg or .png)</span>
+                                        <label class="drop" id="drop" for="file">
+                                            <b>Upload proof of payment</b><small>Tap to choose or drop a JPG or PNG, up
+                                                to <span id="max-mb">–</span> MB</small>
+                                            <input id="file" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+                                        </label>
+                                        <div class="proof" id="proof" hidden><img id="thumb" alt="Proof preview"><span
+                                                id="fname"></span><button type="button" id="rm">Remove</button></div>
+                                        <p class="pd-msg" id="file-msg" role="alert" hidden></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="slide" id="st-ref" inert>
+                                <div>
+                                    <div class="in">
+                                        <label class="lab" for="ref">3. Reference number <span
+                                                id="ref-hint"></span></label>
+                                        <input class="num-in ref" id="ref" type="text" inputmode="numeric"
+                                            autocomplete="off">
+                                        <p class="ai-line" id="ai-line" aria-live="polite" hidden></p>
+                                        <div class="cnt"><span id="cnt">0</span>/<span id="ref-len">–</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="pd-msg" id="tu-msg" role="alert" hidden></p>
+                            <button type="submit" class="btn-fill pop" id="confirm" inert>Confirm top up</button>
+                        </form>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <div class="modal top" id="confirm-dlg" role="alertdialog" aria-modal="true" aria-labelledby="cf-title" hidden>
+        <div class="pf-dialog cf">
+            <div class="cf-body">
+                <h3 id="cf-title">Is your reference number correct?</h3>
+                <p class="cf-ref" id="cf-ref"></p>
+                <p id="cf-text"></p>
+            </div>
+            <div class="cf-foot"><button type="button" class="btn-line" id="cf-back" data-focus>Edit</button><button
+                    type="button" class="btn-fill" id="cf-ok">Confirm</button></div>
+        </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="student-top-up.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,504 @@
+:root {
+    --ink: #1f2420;
+    --muted: #55605a;
+    --accent: #7a1428;
+    /* maroon */
+    --ok: #1f6f5b;
+    --err: #b3412e;
+    --line: rgba(31, 36, 32, .14);
+    --gray: #6b7280;
+
+    /* Warm, deep maroon over the video (gentle on the eyes).
+       Raise the .80 / .88 numbers for darker, lower them to see more video. */
+    --maroon-overlay: linear-gradient(160deg, rgba(96, 18, 30, .80), rgba(58, 10, 20, .88));
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: #3a0a12;
+    /* shown only if the video can't load */
+    color: var(--ink);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* ---------- Background video + maroon layer ---------- */
+.bg-video {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+    transform: translateZ(0);
+}
+
+.bg-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--maroon-overlay);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ---------- Glass panel ---------- */
+.panel {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 440px;
+    margin-top: 90px;
+    /* room for the floating logo */
+    background: rgba(255, 255, 255, .80);
+    -webkit-backdrop-filter: blur(16px) saturate(1.05);
+    backdrop-filter: blur(16px) saturate(1.05);
+    border: 1px solid rgba(255, 255, 255, .45);
+    border-radius: 16px;
+    padding: 0 32px 24px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+}
+
+/* Logo floats over the top edge of the panel */
+.brand {
+    position: relative;
+    z-index: 3;
+    margin: -90px 0 0;
+    line-height: 0;
+}
+
+.brand img {
+    display: block;
+    width: 340px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .35));
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+.sub {
+    color: var(--muted);
+    margin: 6px 0 28px;
+    font-weight: 500;
+}
+
+/* ---------- Tap zone ---------- */
+.tap {
+    border: 2px dashed var(--accent);
+    border-radius: 50%;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    transition: border-color .2s, color .2s, background .2s, opacity .35s ease;
+}
+
+.tap img {
+    width: 62%;
+    height: 62%;
+    object-fit: contain;
+    display: block;
+}
+
+.tap.waiting {
+    animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(122, 20, 40, .25);
+    }
+
+    50% {
+        box-shadow: 0 0 0 16px rgba(122, 20, 40, 0);
+    }
+}
+
+.tap.ok {
+    border-style: solid;
+    border-color: var(--ok);
+    background: rgba(31, 111, 91, .12);
+}
+
+.tap.err {
+    border-style: solid;
+    border-color: var(--err);
+    background: rgba(179, 65, 46, .12);
+}
+
+#message {
+    font-size: 1.15rem;
+    font-weight: 600;
+    min-height: 1.6em;
+    margin: 0;
+}
+
+#detail {
+    color: var(--muted);
+    min-height: 1.4em;
+    margin: 4px 0 0;
+    font-size: .95rem;
+}
+
+/* ---------- Status area (collapses to zero when empty) ---------- */
+.status {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .45s cubic-bezier(.4, 0, .2, 1);
+}
+
+.status.open {
+    grid-template-rows: 1fr;
+}
+
+.status-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.status-content {
+    padding-top: 4px;
+    opacity: 0;
+    transition: opacity .3s ease;
+}
+
+.status.open .status-content {
+    opacity: 1;
+    transition-delay: .1s;
+}
+
+.notice {
+    margin: 0;
+    padding: 12px 16px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    background: transparent;
+    /* no background, outline only */
+    color: var(--ink);
+    font-size: .95rem;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: center;
+}
+
+/* ---------- Forgot your ID? ---------- */
+.help {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+}
+
+.forgot {
+    display: inline-block;
+    color: var(--gray);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    cursor: pointer;
+    transition: text-shadow .2s ease;
+}
+
+.forgot:hover {
+    text-shadow: 0 3px 8px rgba(0, 0, 0, .30);
+}
+
+.forgot:focus-visible {
+    outline: 3px solid rgba(107, 114, 128, .45);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .tap.waiting,
+    .brand img {
+        animation: none;
+    }
+
+    .status,
+    .status-content {
+        transition: none;
+    }
+}
+
+/* ============================================================
+   PIN step (typed on the keyboard, no keypad)
+   ============================================================ */
+
+/* display:flex on .tap would otherwise beat the [hidden] attribute */
+.tap[hidden],
+.pin-area[hidden] {
+    display: none;
+}
+
+/* Fades between the tap screen and the PIN screen (see setView in login.js) */
+.sub {
+    transition: opacity .35s ease;
+}
+
+.sub.welcome {
+    color: var(--ink);
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+/* Same height as the tap circle, so the panel doesn't jump when swapping */
+.pin-area {
+    min-height: 180px;
+    margin: 0 auto 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    transition: opacity .35s ease;
+}
+
+.pin-prompt {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.pin-dots {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+}
+
+.pin-dots .dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: transparent;
+    transition: background .12s ease, transform .12s ease;
+}
+
+.pin-dots .dot.filled {
+    background: var(--accent);
+    transform: scale(1.08);
+}
+
+.pin-dots.shake {
+    animation: shake .38s ease;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-8px);
+    }
+
+    40% {
+        transform: translateX(8px);
+    }
+
+    60% {
+        transform: translateX(-5px);
+    }
+
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .pin-dots.shake {
+        animation: none;
+    }
+
+    .pin-dots .dot,
+    .sub,
+    .pin-area,
+    .tap {
+        transition: none;
+    }
+}
+
+/* ============================================================
+   Loading spinner (after a correct PIN, while the next page opens)
+   Replaces the RFID logo and the dashed circle.
+   ============================================================ */
+.tap.loading {
+    border-color: transparent;
+    background: transparent;
+}
+
+.tap.loading img {
+    display: none;
+}
+
+.tap.loading::after {
+    content: "";
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    border: 6px solid rgba(122, 20, 40, .18);
+    border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tap.loading::after {
+        animation-duration: 2.4s;
+        /* still turns, just gently */
+    }
+}
+
+/* ============================================================
+   Email sign-in (opened by "FORGOT YOUR ID?")
+   Floating-label fields. Controls don't inherit the page font by
+   default, so every control below uses `font: inherit` (= Inter).
+   ============================================================ */
+.email-area[hidden] {
+    display: none;
+}
+
+.email-area {
+    min-height: 180px;
+    margin: 0 auto 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    text-align: left;
+    transition: opacity .35s ease;
+}
+
+.field {
+    position: relative;
+}
+
+.field input {
+    width: 100%;
+    height: 52px;
+    padding: 20px 14px 6px;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--ink);
+    background: rgba(255, 255, 255, .7);
+    border: 1.5px solid rgba(31, 36, 32, .28);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+.field input:focus {
+    background: #fff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(122, 20, 40, .14);
+}
+
+.field label {
+    position: absolute;
+    left: 15px;
+    top: 16px;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--muted);
+    pointer-events: none;
+    transform-origin: left top;
+    transition: transform .18s ease, color .18s ease;
+}
+
+/* The label floats up when the field is focused or has text */
+.field input:focus+label,
+.field input:not(:placeholder-shown)+label {
+    transform: translateY(-10px) scale(.75);
+    color: var(--accent);
+}
+
+.btn {
+    height: 48px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-size: .9rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    cursor: pointer;
+    transition: background .2s, opacity .2s;
+}
+
+.btn:hover {
+    background: #5f0f1f;
+}
+
+.btn:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+.btn:focus-visible {
+    outline: 3px solid rgba(122, 20, 40, .35);
+    outline-offset: 3px;
+}
+
+.email-area.shake {
+    animation: shake .38s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .email-area.shake {
+        animation: none;
+    }
+
+    .email-area,
+    .field input,
+    .field label,
+    .btn {
+        transition: none;
+    }
+}

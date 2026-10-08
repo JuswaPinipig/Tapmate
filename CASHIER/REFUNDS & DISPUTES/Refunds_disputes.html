@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Refunds &amp; disputes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="Refunds_disputes.css">
+</head>
+
+<body>
+    <div class="app refunds init" id="app">
+        <!-- Cabinet -->
+        <aside id="cabinet" class="side" aria-label="Cabinet">
+            <div class="side-head">
+                <img id="logo" class="logo" src="../REGISTER (KIOSK)/Assets/tapmate logo.png" alt="TapMate">
+                <button class="icon-btn" id="collapse" aria-expanded="true" aria-label="Collapse menu">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg>
+                </button>
+            </div>
+            <nav id="cabinetLinks" class="nav"></nav>
+            <div class="side-foot">
+                <button class="me" id="openProfile" title="Profile">
+                    <span class="av" id="sideAv"></span>
+                    <span class="lbl me-t"><b id="sideName">Cashier</b><small id="sideRole">Cashier</small></span>
+                </button>
+                <button class="logout" id="logout" title="Log out">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                        <path d="M15 8l4 4-4 4M19 12H9" />
+                    </svg><span class="lbl">Log out</span>
+                </button>
+            </div>
+        </aside>
+        <div id="scrim" class="scrim" hidden></div>
+
+        <!-- Menu -->
+        <main class="content">
+            <header class="top">
+                <button id="cabinetBtn" class="menu-btn" aria-controls="cabinet" aria-expanded="false"
+                    aria-label="Open cabinet">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                    </svg>
+                </button>
+                <h1>Refunds &amp; disputes</h1>
+                <div class="searchbox" id="searchbox">
+                    <svg class="ico s-ico" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M20 20l-4-4" />
+                    </svg>
+                    <input id="search" type="text" autocomplete="off" spellcheck="false"
+                        placeholder="Search reference, student or item" aria-label="Search transactions">
+                    <button id="searchClear" class="s-clear" aria-label="Clear search" hidden>
+                        <svg class="ico" viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
+                </div>
+                <span class="top-gap"></span>
+            </header>
+
+            <section class="panel" aria-label="Transactions">
+                <div class="tabs-wrap">
+                    <div id="tabs" class="tabs" role="tablist"></div>
+                </div>
+                <section class="rs" id="rsum" aria-label="Refund reports">
+                    <div class="rs-head">
+                        <div class="rs-title">
+                            <h3>Refund reports</h3><span id="rsRange"></span>
+                        </div>
+                        <div class="rs-nav">
+                            <button type="button" id="rsPrev" aria-label="Previous week">&#8249;</button>
+                            <button type="button" id="rsNow">This week</button>
+                            <button type="button" id="rsNext" aria-label="Next week">&#8250;</button>
+                            <button type="button" id="rsCsv" class="rs-dl" title="Download this week's report as CSV">
+                                <svg class="ico" viewBox="0 0 24 24">
+                                    <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+                                </svg>
+                                Download CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="rs-stats" id="rsStats"></div>
+                    <div class="rs-days" id="rsDays" role="group" aria-label="Pick a day"></div>
+                </section>
+                <div class="sec-head tx-sec">
+                    <h3 id="secTitle">All transactions</h3><span id="secCount"></span>
+                </div>
+                <div class="tx-table" role="table" aria-label="Kiosk transactions">
+                    <div class="tx-head" role="row">
+                        <span role="columnheader">Reference</span>
+                        <span role="columnheader" id="colCust">Customer</span>
+                        <span role="columnheader" id="colItems">Purchased item &amp; amount</span>
+                        <span role="columnheader" id="colWhen">Date &amp; time</span>
+                        <span role="columnheader" class="r">Price</span>
+                        <span role="columnheader" class="r">Action</span>
+                    </div>
+                    <ul id="txList" class="tx-list" aria-live="polite"></ul>
+                </div>
+                <nav class="h-pages" id="pages" aria-label="Pagination" hidden></nav>
+                <p id="status" class="status"></p>
+            </section>
+        </main>
+    </div>
+
+    <!-- Profile (same layout as the student wallet: read-only box + PIN management) -->
+    <div class="modal" id="profile" role="dialog" aria-modal="true" aria-labelledby="pfTitle" hidden>
+        <div class="pf-dialog">
+            <div class="dlg-head">
+                <h2 id="pfTitle">My profile</h2>
+                <button class="icon-btn dark" data-close aria-label="Close">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Box 1: read-only (name, email and role are managed by the admin) -->
+            <section class="pd-box pd-profile">
+                <span class="av pd-avatar" id="pfAv" aria-hidden="true"></span>
+                <div class="pd-name" id="pfName">Cashier</div>
+                <div class="pd-email" id="pfEmail"></div>
+                <div class="pd-email" id="pfRole"></div>
+            </section>
+
+            <!-- Box 2: PIN management (the only thing a cashier can change) -->
+            <section class="pd-box">
+                <h3 class="pd-h">PIN management</h3>
+                <div class="pin-meter" id="pinMeter" aria-live="polite">
+                    <b id="pinRemaining">PIN changes remaining: 3/3</b>
+                    <small id="pinNote">You can change your PIN up to 3 times within a 24-hour period.</small>
+                </div>
+                <div class="pin-limit" id="pinLimit" hidden>
+                    <b>PIN change limit reached</b>
+                    <small id="pinLimitText"></small>
+                </div>
+                <form id="pinForm" novalidate>
+                    <div class="pd-pins">
+                        <label><span>Current</span><input id="pinCur" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>New</span><input id="pinNew" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>Confirm</span><input id="pinNew2" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                    </div>
+                    <p class="pd-msg" id="pinMsg" role="alert" hidden></p>
+                    <button type="submit" class="btn-fill pd-wide" id="pinSave">Change PIN</button>
+                </form>
+            </section>
+        </div>
+    </div>
+
+    <!-- Issue refund (receipt style) -->
+    <div class="modal" id="refundModal" role="dialog" aria-modal="true" aria-labelledby="rfTitle" hidden>
+        <div class="rc-wrap">
+            <div class="rc-slot" aria-hidden="true"><i class="rc-led"></i><span></span></div>
+            <div class="rc-paper">
+                <div class="rc-body">
+                    <h3 class="rc-brand" id="rfTitle">TAPMATE</h3>
+                    <p class="rc-sub">Refund slip</p>
+                    <hr>
+                    <dl class="rc-meta" id="rfMeta"></dl>
+                    <hr>
+                    <div id="rfItems"></div>
+                    <hr>
+                    <div class="rc-total"><b>REFUND</b><b id="rfTotal"></b></div>
+                    <p class="rc-note" id="rfText"></p>
+                    <hr>
+                    <label class="rc-field"><span>Reason / complaint <small>(optional)</small></span>
+                        <textarea id="rfReason" maxlength="300"
+                            placeholder="e.g. Wrong item, customer dispute"></textarea></label>
+                    <p class="pd-msg" id="rfMsg" role="alert" hidden></p>
+                    <hr>
+                    <div class="rc-bars" id="rfBars" aria-hidden="true"></div>
+                    <p class="rc-thanks">*** THANK YOU ***</p>
+                </div>
+                <div class="rc-tear" aria-hidden="true"></div>
+            </div>
+            <div class="rc-foot">
+                <button type="button" class="btn-line" id="rfBack" data-focus>Go Back</button>
+                <button type="button" class="btn-fill" id="rfOk">Issue refund</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Day report popup (opens when a day in Refund reports is clicked) -->
+    <div class="modal" id="dayModal" role="dialog" aria-modal="true" aria-labelledby="dyTitle" hidden>
+        <div class="pf-dialog dy-dialog">
+            <div class="dlg-head">
+                <h2 id="dyTitle">Refunds</h2>
+                <button class="icon-btn dark" id="dyClose" aria-label="Close">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="dy-body" id="dyBody"></div>
+            <div class="dy-foot">
+                <button type="button" class="btn-line" id="dyBack" data-focus>Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review a student's refund request -->
+    <div class="modal" id="reviewModal" role="dialog" aria-modal="true" aria-labelledby="rvTitle" hidden>
+        <div class="pf-dialog rv-dialog">
+            <div class="dlg-head">
+                <h2 id="rvTitle">Refund request</h2>
+                <button class="icon-btn dark" id="rvClose" aria-label="Close">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="rv-grid">
+                <div class="rv-left">
+                    <figure class="rv-photo loading" id="rvPhoto">
+                        <img id="rvImg" alt="Photo uploaded by the student" title="Click to open full size">
+                        <figcaption class="rv-ph-msg">Photo could not be loaded.</figcaption>
+                    </figure>
+                    <section class="rv-ai" id="rvAi" aria-live="polite"></section>
+                </div>
+                <div class="rv-right">
+                    <dl class="rv-meta" id="rvMeta"></dl>
+                    <h4 class="rv-h">Items in this purchase</h4>
+                    <ul class="rv-items" id="rvItems"></ul>
+                    <h4 class="rv-h">Reason</h4>
+                    <p class="rv-reason" id="rvReason"></p>
+                    <h4 class="rv-h">Student's statement</h4>
+                    <p class="rv-details" id="rvDetails"></p>
+                    <p class="rv-already" id="rvAlready" hidden>This purchase was already refunded at the counter.
+                        Approving just closes the request.</p>
+                    <label class="rc-field" id="rvNoteWrap"><span>Note <small>(optional)</small></span>
+                        <textarea id="rvNote" maxlength="300"
+                            placeholder="e.g. Photo shows a different product"></textarea></label>
+                    <p class="pd-msg" id="rvMsg" role="alert" hidden></p>
+                    <p class="rv-done" id="rvDone" hidden></p>
+                </div>
+            </div>
+            <div class="rv-foot">
+                <button type="button" class="btn-line" id="rvBack" data-focus>Close</button>
+                <span id="rvActions" class="rv-actions">
+                    <button type="button" class="btn-line rv-reject" id="rvReject">Reject</button>
+                    <button type="button" class="btn-fill" id="rvApprove">Approve &amp; refund</button>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm -->
+    <div class="modal modal-top" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle" hidden>
+        <div class="pf-dialog cf">
+            <div class="cf-body">
+                <h3 id="cfTitle"></h3>
+                <p id="cfText"></p>
+            </div>
+            <div class="cf-foot">
+                <button type="button" class="btn-line" id="cfBack" data-focus>Go Back</button>
+                <button type="button" class="btn-fill" id="cfOk">Change PIN</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="Refunds_disputes.js"></script>
+</body>
+
+</html>

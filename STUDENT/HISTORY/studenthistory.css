@@ -1,0 +1,1944 @@
+:root {
+    --paper: #FAF7F2;
+    --surface: #FFFFFF;
+    --ink: #2B2326;
+    --maroon: #7A1F2B;
+    --maroon-deep: #5E1520;
+    --on-maroon: #F8EDE9;
+    --gray: #8A8587;
+    --gray-soft: #E7E3E0;
+    --gold: #C9A24B;
+    --ok: #2F6B4F;
+    --warn: #9A6A12;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --paper: #1B1618;
+        --surface: #241D20;
+        --ink: #F1E9E6;
+        --gray: #A39DA0;
+        --gray-soft: #3A3235;
+        --maroon: #8E2634;
+        --maroon-deep: #6A1A25;
+    }
+}
+
+:root[data-theme="dark"] {
+    --paper: #1B1618;
+    --surface: #241D20;
+    --ink: #F1E9E6;
+    --gray: #A39DA0;
+    --gray-soft: #3A3235;
+    --maroon: #8E2634;
+    --maroon-deep: #6A1A25;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit
+}
+
+html {
+    scroll-padding-top: env(safe-area-inset-top, 0px)
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 16px/1.5 Figtree, system-ui, sans-serif
+}
+
+h1,
+h2,
+.num {
+    font-family: "Bricolage Grotesque", Figtree, system-ui, sans-serif;
+    margin: 0
+}
+
+
+main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 20px
+}
+
+
+
+
+main {
+    padding-top: 28px;
+    padding-bottom: 48px
+}
+
+.hello {
+    margin-bottom: 22px
+}
+
+.hello h1 {
+    font-size: 28px;
+    font-weight: 700
+}
+
+.hello p {
+    margin: 2px 0 0;
+    color: var(--gray)
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 20px;
+    align-items: start
+}
+
+@media(max-width:760px) {
+    .grid {
+        grid-template-columns: 1fr
+    }
+}
+
+.wallet {
+    background: var(--maroon);
+    color: var(--on-maroon);
+    border-radius: 20px;
+    padding: 26px;
+    position: relative;
+    overflow: hidden
+}
+
+.wallet::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 26px solid var(--maroon-deep);
+    pointer-events: none
+        /* decorative ring was covering the settings gear and eating clicks */
+}
+
+
+.wallet .num {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 4px 0 20px;
+    position: relative
+}
+
+.wallet .num small {
+    font-size: 24px;
+    font-weight: 500;
+    margin-right: 4px;
+    color: var(--gold)
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    position: relative;
+    flex-wrap: wrap
+}
+
+button {
+    font: 600 15px Figtree, sans-serif;
+    border-radius: 999px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1.5px solid transparent
+}
+
+button:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.btn-gold {
+    background: var(--gold);
+    color: #2B2326
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--on-maroon);
+    border-color: rgba(248, 237, 233, .5)
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--gray-soft);
+    border-radius: 16px;
+    padding: 22px
+}
+
+.card h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px
+}
+
+.rfid-row {
+    display: flex;
+    align-items: center;
+    gap: 14px
+}
+
+.dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ok);
+    flex: none;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--ok) 20%, transparent)
+}
+
+.dot.off {
+    background: var(--gray);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--gray) 20%, transparent)
+}
+
+.rfid-row strong {
+    display: block;
+    font-size: 17px
+}
+
+.meta {
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    font-size: 14px
+}
+
+.meta div {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid var(--gray-soft);
+    padding-top: 8px
+}
+
+.meta dt {
+    color: var(--gray)
+}
+
+.meta dd {
+    margin: 0;
+    font-weight: 500
+}
+
+.rfid-card .btn-line {
+    margin-top: 16px;
+    width: 100%;
+    background: transparent;
+    color: var(--maroon);
+    border-color: var(--maroon)
+}
+
+.tx {
+    grid-column: 1/-1
+}
+
+.tx-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline
+}
+
+.tx-head h2 {
+    margin: 0
+}
+
+.filters {
+    display: flex;
+    gap: 6px
+}
+
+.filters button {
+    padding: 5px 14px;
+    font-size: 13px;
+    background: transparent;
+    color: var(--gray);
+    border-color: var(--gray-soft)
+}
+
+.filters button[aria-pressed="true"] {
+    background: var(--maroon);
+    color: var(--on-maroon);
+    border-color: var(--maroon)
+}
+
+ul {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0
+}
+
+li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 16px;
+    padding: 14px 0;
+    border-top: 1px solid var(--gray-soft)
+}
+
+li .what {
+    font-weight: 600
+}
+
+li .when {
+    color: var(--gray);
+    font-size: 13px
+}
+
+li .amt {
+    font: 700 17px "Bricolage Grotesque", sans-serif;
+    text-align: right
+}
+
+li .amt.in {
+    color: var(--ok)
+}
+
+li .via {
+    color: var(--gray);
+    font-size: 13px;
+    text-align: right
+}
+
+.empty {
+    padding: 20px 0;
+    color: var(--gray)
+}
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s
+}
+
+.toast.show {
+    opacity: 1
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .toast {
+        transition: none
+    }
+}
+
+/* Auth, errors, small buttons */
+[hidden] {
+    display: none !important
+}
+
+
+
+.err {
+    color: var(--maroon);
+    font-size: 14px;
+    margin: 12px 0 0
+}
+
+.sub {
+    display: block;
+    color: var(--gray);
+    font-size: 14px
+}
+
+
+.rfid-card .btn-line:disabled {
+    opacity: .5;
+    cursor: not-allowed
+}
+
+/* ===== Cabinet (collapsible sidebar) ===== */
+.shell {
+    display: flex;
+    min-height: 100vh
+}
+
+.shell.init,
+.shell.init * {
+    transition: none !important
+}
+
+.side {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 248px;
+    flex: none;
+    background: var(--maroon-deep);
+    color: var(--on-maroon);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 12px;
+    border-right: 3px solid var(--gold);
+    overflow: hidden;
+    transition: width .3s cubic-bezier(.4, 0, .2, 1);
+    z-index: 30
+}
+
+.shell.collapsed .side {
+    width: 76px
+}
+
+.content {
+    flex: 1;
+    min-width: 0
+}
+
+.side-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 48px;
+    margin-bottom: 18px
+}
+
+.logo {
+    height: 34px;
+    width: auto;
+    max-width: 150px;
+    object-fit: contain;
+    transition: opacity .2s, max-width .3s;
+    padding-left: 6px
+}
+
+.shell.collapsed .logo {
+    opacity: 0;
+    max-width: 0;
+    padding: 0
+}
+
+.shell.collapsed .side-head {
+    justify-content: center
+}
+
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    border: 0;
+    flex: none
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, .1)
+}
+
+.icon-btn.dark {
+    color: var(--ink)
+}
+
+.icon-btn.dark:hover {
+    background: var(--gray-soft)
+}
+
+.icon-btn svg,
+.nav svg,
+.logout svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none
+}
+
+#collapse svg {
+    transition: transform .3s
+}
+
+.shell.collapsed #collapse svg {
+    transform: rotate(180deg)
+}
+
+.nav {
+    display: grid;
+    gap: 4px
+}
+
+.nav a,
+.logout,
+.me {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 46px;
+    padding: 0 13px;
+    border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+    font: 500 15px Figtree, sans-serif;
+    position: relative;
+    white-space: nowrap
+}
+
+.nav a:hover,
+.logout:hover,
+.me:hover {
+    background: rgba(255, 255, 255, .08)
+}
+
+.nav a[aria-current="page"] {
+    background: rgba(255, 255, 255, .14)
+}
+
+.nav a[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 10px;
+    bottom: 10px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--gold)
+}
+
+.nav a:focus-visible,
+.logout:focus-visible,
+.me:focus-visible,
+.icon-btn:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.lbl {
+    overflow: hidden;
+    transition: opacity .2s, max-width .3s;
+    max-width: 160px
+}
+
+.shell.collapsed .lbl {
+    opacity: 0;
+    max-width: 0
+}
+
+.side-foot {
+    margin-top: auto;
+    display: grid;
+    gap: 8px
+}
+
+.me {
+    height: 58px;
+    width: 100%;
+    background: rgba(255, 255, 255, .07);
+    border: 0;
+    border-radius: 12px;
+    text-align: left;
+    padding: 0 9px;
+    gap: 12px
+}
+
+.me-t {
+    display: grid;
+    line-height: 1.25
+}
+
+.me-t b {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.me-t small {
+    font-size: 12px;
+    opacity: .75
+}
+
+.logout {
+    background: transparent;
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 0 0 10px 10px;
+    margin-top: 6px;
+    height: 48px;
+    width: 100%;
+    cursor: pointer
+}
+
+.av {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--gold);
+    color: #2B2326;
+    display: grid;
+    place-items: center;
+    font: 700 15px "Bricolage Grotesque", sans-serif;
+    overflow: hidden;
+    flex: none
+}
+
+.av img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+}
+
+.av.big {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    font-size: 22px
+}
+
+.mbar,
+.scrim {
+    display: none
+}
+
+.lbl-s {
+    font-size: 14px;
+    opacity: .85;
+    position: relative
+}
+
+.link {
+    color: var(--maroon);
+    font-weight: 600;
+    font-size: 14px
+}
+
+.how {
+    margin: 0;
+    color: var(--ink);
+    font-size: 15px;
+    max-width: 60ch
+}
+
+.view:not([hidden]) {
+    animation: vin .28s ease
+}
+
+@keyframes vin {
+    from {
+        opacity: 0;
+        transform: translateY(6px)
+    }
+
+    to {
+        opacity: 1;
+        transform: none
+    }
+}
+
+@media(max-width:760px) {
+    .side {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 248px;
+        transform: translateX(-100%);
+        transition: transform .3s cubic-bezier(.4, 0, .2, 1)
+    }
+
+    .shell.collapsed .side {
+        width: 248px
+    }
+
+    .shell.collapsed .lbl {
+        opacity: 1;
+        max-width: 160px
+    }
+
+    .shell.collapsed .logo {
+        opacity: 1;
+        max-width: 150px;
+        padding-left: 6px
+    }
+
+    .shell.open .side {
+        transform: none
+    }
+
+    .scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(43, 35, 38, .45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .3s;
+        z-index: 20
+    }
+
+    .shell.open .scrim {
+        opacity: 1;
+        pointer-events: auto
+    }
+
+    .mbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 56px;
+        padding: 0 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--gray-soft)
+    }
+}
+
+/* ===== Profile dialog (admin-style boxes) ===== */
+.modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(43, 35, 38, .55);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity .22s ease;
+    z-index: 50
+}
+
+.modal.top {
+    z-index: 60
+}
+
+.modal.open {
+    opacity: 1
+}
+
+.pf-dialog {
+    width: min(380px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    background: var(--paper);
+    border-radius: 18px;
+    padding-bottom: 4px;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, .35);
+    transform: translateY(10px) scale(.98);
+    transition: transform .22s ease
+}
+
+.modal.open .pf-dialog {
+    transform: none
+}
+
+.dlg-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px
+}
+
+.dlg-head h2 {
+    font-size: 1.05rem;
+    margin: 0
+}
+
+.pd-box {
+    margin: 0 14px 12px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--gray-soft);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(43, 35, 38, .06)
+}
+
+.pd-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center
+}
+
+.av.pd-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    font-size: 1.6rem;
+    background: var(--maroon);
+    color: #fff;
+    border: 3px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--gray-soft), 0 6px 16px rgba(94, 21, 32, .18)
+}
+
+.pd-name {
+    margin-top: 12px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere
+}
+
+.pd-email {
+    color: var(--gray);
+    font-size: .85rem;
+    overflow-wrap: anywhere
+}
+
+.pd-h {
+    margin: 0 0 10px;
+    font-size: .98rem;
+    font-family: "Bricolage Grotesque", Figtree, sans-serif
+}
+
+.pin-meter,
+.pin-limit {
+    padding: 9px 12px;
+    border-radius: 10px;
+    display: grid;
+    gap: 2px;
+    font-size: .86rem;
+    margin-bottom: 12px
+}
+
+.pin-meter {
+    background: color-mix(in srgb, var(--maroon) 8%, transparent)
+}
+
+.pin-limit {
+    background: rgba(179, 65, 46, .1);
+    color: #7d2616
+}
+
+.pin-meter small,
+.pin-limit small {
+    color: inherit;
+    opacity: .8;
+    line-height: 1.35
+}
+
+.pd-pins {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px
+}
+
+.pd-pins label span {
+    display: block;
+    font-size: .76rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-align: left
+}
+
+.pd-pins input {
+    width: 100%;
+    height: 40px;
+    padding: 0 6px;
+    text-align: center;
+    letter-spacing: .25em;
+    font: inherit;
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-soft);
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.pd-pins input:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 1px
+}
+
+.pd-pins input:disabled {
+    opacity: .5
+}
+
+.pd-msg {
+    margin: 12px 0 0;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: rgba(179, 65, 46, .1);
+    color: #7d2616;
+    font-size: .84rem
+}
+
+.btn-line,
+.btn-fill {
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px
+}
+
+.btn-line {
+    background: transparent;
+    color: var(--maroon);
+    border-color: var(--maroon)
+}
+
+.btn-fill {
+    background: var(--maroon);
+    color: var(--on-maroon)
+}
+
+.btn-fill:disabled {
+    opacity: .5;
+    cursor: not-allowed
+}
+
+.pd-wide {
+    width: 100%;
+    margin-top: 12px
+}
+
+.pf-dialog.cf {
+    width: min(400px, 100%)
+}
+
+.cf-body {
+    padding: 22px 22px 4px
+}
+
+.cf-body h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-family: "Bricolage Grotesque", Figtree, sans-serif
+}
+
+.cf-body p {
+    margin: 0 0 12px;
+    color: var(--gray);
+    font-size: .92rem;
+    line-height: 1.5
+}
+
+.cf-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 8px 22px 20px
+}
+
+.toast.show {
+    opacity: 1
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+    .side,
+    .lbl,
+    .logo,
+    .modal,
+    .pf-dialog,
+    .scrim,
+    #collapse svg {
+        transition: none !important
+    }
+
+    .view:not([hidden]) {
+        animation: none
+    }
+}
+
+/* ===== Wallet card: card number, daily limit bar, settings ===== */
+.wallet>* {
+    position: relative
+}
+
+.wallet-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px
+}
+
+.wallet .num {
+    margin: 4px 0 8px
+}
+
+
+
+
+
+.cardno b {
+    font-weight: 600;
+    letter-spacing: .04em;
+    margin-left: 6px
+}
+
+.limit {
+    margin-top: 16px
+}
+
+.limit-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    margin-bottom: 6px
+}
+
+.bar {
+    height: 8px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .18);
+    overflow: hidden
+}
+
+.bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 99px;
+    background: var(--gold);
+    transition: width .5s cubic-bezier(.4, 0, .2, 1)
+}
+
+.bar.warn i {
+    background: #F0B08A
+}
+
+.bar.full i {
+    background: #E87C6A
+}
+
+.limit .lbl-s {
+    margin-top: 6px
+}
+
+.upd {
+    margin-top: 14px
+}
+
+.rfid-card .sub {
+    max-width: 30ch
+}
+
+/* ===== Pay Later ===== */
+.pl {
+    max-width: 640px
+}
+
+.pl h2 {
+    margin-bottom: 8px
+}
+
+.rules p {
+    margin: 0 0 10px;
+    font-size: 15px;
+    max-width: 60ch
+}
+
+.pl .btn-fill,
+.pl .btn-line {
+    margin-top: 14px;
+    border-radius: 999px;
+    padding: 10px 22px
+}
+
+.pl-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px
+}
+
+.badge {
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
+    color: var(--ok);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin: 14px 0
+}
+
+.stat {
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: grid;
+    gap: 2px
+}
+
+.stat small {
+    color: var(--gray);
+    font-size: 13px
+}
+
+.stat b {
+    font: 700 20px "Bricolage Grotesque", sans-serif
+}
+
+.pl .how {
+    margin: 0 0 8px;
+    color: var(--gray);
+    font-size: 14px
+}
+
+.lab {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 12px 0 4px
+}
+
+.num-in {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    font: inherit;
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-soft);
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.num-in:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 1px
+}
+
+
+
+
+
+
+.cf-body p {
+    white-space: pre-line
+}
+
+/* ===== Parent link + Pay Later (inside the Student Wallet tab) ===== */
+.grid .wide {
+    grid-column: 1 / -1
+}
+
+.plink h2,
+.pl h2 {
+    margin-bottom: 6px
+}
+
+.plink .how {
+    color: var(--gray);
+    font-size: 14px;
+    margin-bottom: 14px
+}
+
+.plink-body {
+    display: flex;
+    gap: 22px;
+    align-items: center;
+    flex-wrap: wrap
+}
+
+.qr-box {
+    width: 176px;
+    height: 176px;
+    flex: none;
+    padding: 10px;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--gray-soft);
+    display: grid;
+    place-items: center;
+    position: relative
+}
+
+.qr-box canvas,
+.qr-box img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block
+}
+
+.qr-box.stale {
+    opacity: .25
+}
+
+.plink-side {
+    display: grid;
+    gap: 6px;
+    min-width: 200px;
+    flex: 1
+}
+
+.code-lbl {
+    font-size: 13px;
+    color: var(--gray)
+}
+
+.code {
+    font: 700 38px/1 "Bricolage Grotesque", sans-serif;
+    letter-spacing: .18em;
+    color: var(--maroon)
+}
+
+.timer {
+    font-size: 14px;
+    color: var(--gray)
+}
+
+.timer b {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums
+}
+
+.plink .btn-line {
+    margin-top: 8px;
+    border-radius: 999px;
+    padding: 8px 18px;
+    justify-self: start
+}
+
+.badge.ok {
+    display: inline-block
+}
+
+.lock {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: var(--paper);
+    border: 1px dashed var(--gray-soft);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 4px
+}
+
+.lock svg {
+    width: 26px;
+    height: 26px;
+    flex: none;
+    fill: none;
+    stroke: var(--maroon);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round
+}
+
+.lock b {
+    display: block;
+    margin-bottom: 2px
+}
+
+.lock p {
+    margin: 0;
+    color: var(--gray);
+    font-size: 14px
+}
+
+.pl {
+    max-width: none
+}
+
+/* ===== Parent widget (under Card details) ===== */
+.pw {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gray-soft);
+    font-size: 14px
+}
+
+.pw .dot {
+    width: 10px;
+    height: 10px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 20%, transparent)
+}
+
+.pw .dot.off {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--gray) 20%, transparent)
+}
+
+.pw-t {
+    flex: 1;
+    color: var(--gray)
+}
+
+.pw-btn {
+    border: 0;
+    background: transparent;
+    color: var(--maroon);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 2px
+}
+
+.pw-btn:hover {
+    text-decoration: underline
+}
+
+.pw-btn:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 6px
+}
+
+/* Parent link popup */
+.pk-box {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    text-align: center
+}
+
+.pk-box .how {
+    color: var(--gray);
+    font-size: 14px;
+    margin-bottom: 4px
+}
+
+.pk-box .btn-line {
+    border-radius: 999px;
+    padding: 8px 18px;
+    margin-top: 4px
+}
+
+.pk-box .qr-box {
+    margin: 4px 0
+}
+
+/* =====================================================================
+   HISTORY PAGE (everything above is the student wallet design, unchanged)
+   ===================================================================== */
+.sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap
+}
+
+.h-stats {
+    margin: 0 0 20px
+}
+
+.hist {
+    padding: 18px 22px 8px
+}
+
+.h-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap
+}
+
+/* segmented tabs, same pill language as the cashier toggle */
+.tabs {
+    display: inline-flex;
+    padding: 4px;
+    gap: 2px;
+    background: var(--paper);
+    border: 1px solid var(--gray-soft);
+    border-radius: 999px
+}
+
+.tabs button {
+    background: transparent;
+    color: var(--gray);
+    border: 0;
+    padding: 8px 18px;
+    font-size: 14px
+}
+
+.tabs button[aria-selected="true"] {
+    background: var(--maroon);
+    color: var(--on-maroon)
+}
+
+.h-list {
+    margin-top: 10px
+}
+
+.h-list li.hrow {
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 4px 14px
+}
+
+.h-list li.hrow .h-main {
+    display: grid;
+    gap: 2px;
+    min-width: 0
+}
+
+.h-list li.hrow .what {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.h-list li.hrow .h-side {
+    display: grid;
+    justify-items: end;
+    gap: 2px
+}
+
+.h-list li.empty {
+    display: block;
+    border-top: 0
+}
+
+.h-list li.hrow .ref {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px
+}
+
+.eye {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--maroon);
+    border: 1.5px solid var(--gray-soft)
+}
+
+.eye:hover {
+    background: color-mix(in srgb, var(--maroon) 8%, transparent);
+    border-color: var(--maroon)
+}
+
+.eye svg {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round
+}
+
+.st {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 99px
+}
+
+.st.pending {
+    background: color-mix(in srgb, var(--warn) 15%, transparent);
+    color: var(--warn)
+}
+
+.st.approved {
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
+    color: var(--ok)
+}
+
+.st.rejected {
+    background: rgba(179, 65, 46, .12);
+    color: #9a3220
+}
+
+.h-pages {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 0 16px
+}
+
+.h-pages .pg {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--gray-soft);
+    background: transparent;
+    color: var(--gray);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer
+}
+
+.h-pages .pg:hover:not(:disabled):not(.cur) {
+    border-color: var(--maroon);
+    color: var(--maroon)
+}
+
+.h-pages .pg.cur {
+    background: var(--maroon);
+    border-color: var(--maroon);
+    color: var(--on-maroon);
+    cursor: default
+}
+
+.h-pages .pg:disabled {
+    opacity: .4;
+    cursor: not-allowed
+}
+
+.h-pages .pg-gap {
+    color: var(--gray);
+    padding: 0 2px
+}
+
+@media (max-width:520px) {
+    .h-list li.hrow {
+        grid-template-columns: 1fr auto
+    }
+
+    .h-list li.hrow .eye {
+        grid-column: 2;
+        grid-row: 1
+    }
+
+    .h-list li.hrow .h-side {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-items: start;
+        grid-auto-flow: column;
+        justify-content: space-between
+    }
+}
+
+/* ===== E-receipt (looks like the paper one the kiosk prints) ===== */
+.pf-dialog.rc {
+    background: transparent;
+    box-shadow: none;
+    width: min(360px, 100%);
+    padding: 6px 6px 0;
+    overflow-y: auto
+}
+
+.rc-wrap {
+    filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .3))
+}
+
+.rcpt {
+    background: #fff;
+    color: #222;
+    padding: 24px 22px 40px;
+    font: 400 12.5px/1.5 Consolas, "Courier New", monospace;
+    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%;
+    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%
+}
+
+.modal.open .rcpt {
+    animation: rprint .95s steps(26, end) both
+}
+
+@keyframes rprint {
+    from {
+        clip-path: inset(0 0 100% 0)
+    }
+
+    to {
+        clip-path: inset(0 0 0 0)
+    }
+}
+
+.rcpt .r-brand {
+    text-align: center;
+    font: 700 22px "Bricolage Grotesque", Consolas, monospace;
+    letter-spacing: .08em;
+    color: var(--maroon)
+}
+
+.rcpt .r-sub {
+    text-align: center;
+    font-size: 11px;
+    color: #777;
+    margin-bottom: 2px
+}
+
+.rcpt .r-dash {
+    border: 0;
+    border-top: 1px dashed #b9abad;
+    margin: 10px 0
+}
+
+.rcpt .r-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 1.5px 0
+}
+
+.rcpt .r-row span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere
+}
+
+.rcpt .r-row span:last-child {
+    text-align: right;
+    white-space: nowrap
+}
+
+.rcpt .r-b {
+    font-weight: 700
+}
+
+.rcpt .r-total {
+    font-size: 17px
+}
+
+.rcpt .r-bar {
+    display: block;
+    margin: 12px auto 4px;
+    height: 40px;
+    width: 100%
+}
+
+.rcpt .r-thanks {
+    text-align: center;
+    font-weight: 700;
+    margin-top: 4px
+}
+
+.rc-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 16px 0 10px
+}
+
+.rc-actions .btn-gold,
+.rc-actions .btn-ghost {
+    padding: 9px 26px
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .modal.open .rcpt {
+        animation: none
+    }
+}
+
+@media print {
+    body>*:not(#receipt-modal) {
+        display: none !important
+    }
+
+    #receipt-modal {
+        position: static;
+        background: none;
+        backdrop-filter: none;
+        opacity: 1;
+        padding: 0;
+        display: block !important
+    }
+
+    .rc-actions {
+        display: none !important
+    }
+
+    .pf-dialog.rc {
+        box-shadow: none;
+        width: 340px;
+        margin: 0 auto
+    }
+
+    .rc-wrap {
+        filter: none
+    }
+
+    .modal.open .rcpt,
+    .rcpt {
+        animation: none;
+        clip-path: none
+    }
+}
+
+/* ===== Refund: countdown in the receipt + request dialog ===== */
+.rcpt .r-refund span:last-child {
+    font-variant-numeric: tabular-nums
+}
+
+.rcpt .r-refund .low {
+    color: #b3412e
+}
+
+.rc-rf {
+    margin: 14px 0 0;
+    text-align: center
+}
+
+.rf-btn {
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    border: 1.5px solid rgba(255, 255, 255, .6);
+    transition: background .2s ease, opacity .2s ease
+}
+
+.rf-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, .26)
+}
+
+.rf-btn:disabled {
+    opacity: .55;
+    cursor: not-allowed
+}
+
+.rc-rfnote {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .85)
+}
+
+.pf-dialog.rf {
+    width: min(440px, 100%)
+}
+
+.rf form {
+    padding: 0 0 6px
+}
+
+.rf-sum {
+    margin: 0 18px 10px;
+    font-size: .84rem;
+    color: var(--gray);
+    overflow-wrap: anywhere
+}
+
+.rf .pd-box {
+    margin-left: 18px;
+    margin-right: 18px
+}
+
+.rf .pd-h {
+    display: block
+}
+
+.rf .req {
+    font-style: normal;
+    font-size: .7rem;
+    font-weight: 600;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 99px;
+    color: var(--maroon);
+    background: color-mix(in srgb, var(--maroon) 10%, transparent);
+    vertical-align: 1px
+}
+
+.rf-drop {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 130px;
+    border: 2px dashed var(--gray-soft);
+    border-radius: 12px;
+    background: var(--paper);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color .2s ease, background .2s ease
+}
+
+.rf-drop:hover,
+.rf-drop:focus-within {
+    border-color: var(--maroon)
+}
+
+.rf-drop:focus-within {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.rf-drop.has {
+    border-style: solid
+}
+
+.rf-ph {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 14px;
+    color: var(--gray);
+    text-align: center
+}
+
+.rf-ph svg {
+    width: 30px;
+    height: 30px;
+    fill: none;
+    stroke: var(--maroon);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round
+}
+
+.rf-ph b {
+    color: var(--ink);
+    font-size: .92rem
+}
+
+.rf-ph small {
+    font-size: .78rem
+}
+
+.rf-drop img {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover
+}
+
+.rf-change {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: .76rem;
+    font-weight: 600;
+    background: rgba(43, 35, 38, .78);
+    color: #fff
+}
+
+/* sections slide open one after the other */
+.rf-step {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: grid-template-rows .38s ease, opacity .3s ease, transform .38s ease
+}
+
+.rf-step.show {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: none
+}
+
+.rf-in {
+    overflow: hidden;
+    min-height: 0
+}
+
+.rf-in .pd-box {
+    margin-top: 12px
+}
+
+.rf select,
+.rf textarea {
+    width: 100%;
+    font: inherit;
+    font-size: .92rem;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-soft);
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.rf textarea {
+    resize: none;
+    /* no manual resizing; it grows by itself as the student types */
+    overflow-y: hidden;
+    min-height: 64px;
+    max-height: 50vh;
+    line-height: 1.45;
+    display: block
+}
+
+.rf select:focus-visible,
+.rf textarea:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 1px
+}
+
+.rf-count {
+    display: block;
+    text-align: right;
+    margin-top: 4px;
+    color: var(--gray);
+    font-size: .74rem
+}
+
+.rf .pd-msg {
+    margin: 12px 18px 0
+}
+
+.rf-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 14px 18px 0
+}
+
+.rf-note {
+    margin: 10px 18px 12px;
+    font-size: .76rem;
+    color: var(--gray);
+    text-align: center
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+    .rf-step,
+    .rf-drop {
+        transition: none
+    }
+}
+
+@media print {
+    .rc-rf {
+        display: none !important
+    }
+}
+
+/* ===== Reason dropdown: custom look, no white flash on hover ===== */
+.rf select {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    padding-right: 38px;
+    background-color: var(--paper);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237A1F2B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    transition: background-color .18s ease, border-color .18s ease
+}
+
+.rf select:hover {
+    background-color: color-mix(in srgb, var(--maroon) 7%, var(--paper));
+    border-color: var(--maroon)
+}
+
+.rf select:focus {
+    background-color: color-mix(in srgb, var(--maroon) 7%, var(--paper));
+    border-color: var(--maroon)
+}
+
+.rf select option {
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.rf select option:checked,
+.rf select option:hover {
+    background: color-mix(in srgb, var(--maroon) 14%, var(--paper));
+    color: var(--ink)
+}

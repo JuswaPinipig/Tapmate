@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TapMate</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+
+    <!-- Background video: silent, looping, no controls -->
+    <video class="bg-video" autoplay muted loop playsinline preload="auto" disablepictureinpicture aria-hidden="true">
+        <source src="../LOGIN/assets/school-video.mp4" type="video/mp4">
+    </video>
+
+    <!-- Warm maroon layer over the video -->
+    <div class="bg-overlay"></div>
+
+    <main class="panel">
+        <h1 class="brand">
+            <img src="../LOGIN/assets/tapmate logo.png" alt="TapMate">
+        </h1>
+        <p id="sub" class="sub">Tap your ID card on the reader.</p>
+
+        <div id="tap" class="tap waiting" aria-hidden="true">
+            <!-- RFID wave logo -->
+            <img src="../LOGIN/assets/RFID%20wave.png" alt="">
+        </div>
+
+        <!-- Step 2: PIN (typed on the keyboard; shown after a valid card is tapped) -->
+        <div id="pinArea" class="pin-area" hidden>
+            <p class="pin-prompt">Please enter your PIN.</p>
+            <div id="pinDots" class="pin-dots" role="img" aria-label="0 digits entered"></div>
+        </div>
+
+        <!-- Alternate sign-in (opened by "FORGOT YOUR ID?"): school email + RFID number, then the PIN -->
+        <form id="emailArea" class="email-area" hidden novalidate autocomplete="off">
+            <div class="field">
+                <input id="emailInput" name="school-email" type="email" placeholder=" " inputmode="email"
+                    autocomplete="off" autocapitalize="off" spellcheck="false">
+                <label for="emailInput">School email</label>
+            </div>
+            <div class="field">
+                <input id="rfidInput" name="rfid-number" type="password" placeholder=" " autocomplete="off"
+                    spellcheck="false">
+                <label for="rfidInput">RFID number</label>
+            </div>
+            <button id="emailBtn" class="btn" type="submit">CONTINUE</button>
+        </form>
+
+        <div id="status" class="status">
+            <div class="status-inner">
+                <div class="status-content">
+                    <p id="message" role="status" aria-live="polite"></p>
+                    <p id="detail"></p>
+                    <!-- Shown when a card can't be used (not assigned, inactive, no PIN, locked, offline) -->
+                    <p id="notice" class="notice" role="alert" hidden></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="help">
+            <!-- TODO: replace "#" with the page or action for lost / forgotten IDs -->
+            <a id="forgotId" class="forgot" href="#">FORGOT YOUR ID?</a>
+        </div>
+    </main>
+
+    <!-- Supabase client (loads as global `supabase`) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="login.js"></script>
+</body>
+
+</html>

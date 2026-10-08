@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Register</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="Register.css">
+</head>
+
+<body>
+    <div class="app init" id="app">
+        <!-- Cabinet -->
+        <aside id="cabinet" class="side" aria-label="Cabinet">
+            <div class="side-head">
+                <img id="logo" class="logo" src="../REGISTER (KIOSK)/Assets/tapmate logo.png" alt="TapMate">
+                <button class="icon-btn" id="collapse" aria-expanded="true" aria-label="Collapse menu">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg>
+                </button>
+            </div>
+            <nav id="cabinetLinks" class="nav"></nav>
+            <div class="side-foot">
+                <button class="me" id="openProfile" title="Profile">
+                    <span class="av" id="sideAv"></span>
+                    <span class="lbl me-t"><b id="sideName">Cashier</b><small id="sideRole">Cashier</small></span>
+                </button>
+                <button class="logout" id="logout" title="Log out">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                        <path d="M15 8l4 4-4 4M19 12H9" />
+                    </svg><span class="lbl">Log out</span>
+                </button>
+            </div>
+        </aside>
+        <div id="scrim" class="scrim" hidden></div>
+
+        <!-- Menu -->
+        <main class="content">
+            <header class="top">
+                <button id="cabinetBtn" class="menu-btn" aria-controls="cabinet" aria-expanded="false"
+                    aria-label="Open cabinet">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                    </svg>
+                </button>
+                <h1>Register</h1>
+                <div class="searchbox" id="searchbox">
+                    <svg class="ico s-ico" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M20 20l-4-4" />
+                    </svg>
+                    <input id="search" type="text" role="combobox" aria-expanded="false" aria-controls="suggest"
+                        aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Search products"
+                        aria-label="Search products">
+                    <button id="searchClear" class="s-clear" aria-label="Clear search" hidden>
+                        <svg class="ico" viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                        </svg>
+                    </button>
+                    <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+                </div>
+                <span class="top-gap"></span>
+            </header>
+
+            <section class="panel" aria-label="Products">
+                <div class="tabs-wrap">
+                    <div id="tabs" class="tabs" role="tablist"></div>
+                </div>
+                <div id="grid" class="catalog" aria-live="polite"></div>
+                <p id="status" class="status"></p>
+            </section>
+        </main>
+
+        <!-- Order tally -->
+        <aside class="tally" aria-label="Order tally">
+            <a id="kiosk" class="kiosk" href="#">
+                <span class="k-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="12" rx="2" />
+                        <path d="M8 20h8M12 16v4" />
+                    </svg></span><span class="k-t">Open Cashier kiosk</span>
+                <svg class="ico k-arr" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+            </a>
+            <div class="tally-head">
+                <h2>Order tally</h2>
+                <span class="count" id="count">0 items</span>
+            </div>
+
+            <!-- One container for both states, so the background never changes -->
+            <div class="cart" id="cart">
+                <ul id="lines" class="lines"></ul>
+                <div id="empty" class="empty">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6.2" />
+                        <circle cx="9.5" cy="20" r="1.3" />
+                        <circle cx="17" cy="20" r="1.3" />
+                    </svg>
+                    <b>Cart is empty</b>
+                    <span>Tap a product to start an order.</span>
+                </div>
+            </div>
+
+            <dl class="totals">
+                <div>
+                    <dt>Subtotal</dt>
+                    <dd id="subtotal"></dd>
+                </div>
+                <div class="pay">
+                    <dt id="payLabel">Payment method</dt>
+                    <dd>
+                        <div class="pay-opts" role="radiogroup" aria-labelledby="payLabel">
+                            <label class="pay-opt">
+                                <input type="radio" name="pay" value="rfid" checked>
+                                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M6 9a4 4 0 0 1 0 6M10 6.5a8 8 0 0 1 0 11M14 4a12 12 0 0 1 0 16" />
+                                </svg>
+                                <span>RFID payment</span>
+                            </label>
+                            <label class="pay-opt">
+                                <input type="radio" name="pay" value="paylater">
+                                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="M12 7v5l3 2" />
+                                </svg>
+                                <span>Pay Later</span>
+                            </label>
+                        </div>
+                    </dd>
+                </div>
+            </dl>
+
+            <!-- Clear order: only shown while the order has items -->
+            <div class="clear-wrap" id="clearWrap">
+                <div class="clear-in">
+                    <button id="clear" class="ghost" type="button">
+                        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 1h6a2 2 0 0 0 2-1l1-12M9 7V4h6v3" />
+                        </svg>Clear order
+                    </button>
+                </div>
+            </div>
+
+            <div class="grand">
+                <span class="g-l">Total</span>
+                <b id="total"></b>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Profile (same layout as the student wallet: read-only box + PIN management) -->
+    <div class="modal" id="profile" role="dialog" aria-modal="true" aria-labelledby="pfTitle" hidden>
+        <div class="pf-dialog">
+            <div class="dlg-head">
+                <h2 id="pfTitle">My profile</h2>
+                <button class="icon-btn dark" data-close aria-label="Close">
+                    <svg class="ico" viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Box 1: read-only (name, email and role are managed by the admin) -->
+            <section class="pd-box pd-profile">
+                <span class="av pd-avatar" id="pfAv" aria-hidden="true"></span>
+                <div class="pd-name" id="pfName">Cashier</div>
+                <div class="pd-email" id="pfEmail"></div>
+                <div class="pd-email" id="pfRole"></div>
+            </section>
+
+            <!-- Box 2: PIN management (the only thing a cashier can change) -->
+            <section class="pd-box">
+                <h3 class="pd-h">PIN management</h3>
+                <div class="pin-meter" id="pinMeter" aria-live="polite">
+                    <b id="pinRemaining">PIN changes remaining: 3/3</b>
+                    <small id="pinNote">You can change your PIN up to 3 times within a 24-hour period.</small>
+                </div>
+                <div class="pin-limit" id="pinLimit" hidden>
+                    <b>PIN change limit reached</b>
+                    <small id="pinLimitText"></small>
+                </div>
+                <form id="pinForm" novalidate>
+                    <div class="pd-pins">
+                        <label><span>Current</span><input id="pinCur" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>New</span><input id="pinNew" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>Confirm</span><input id="pinNew2" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                    </div>
+                    <p class="pd-msg" id="pinMsg" role="alert" hidden></p>
+                    <button type="submit" class="btn-fill pd-wide" id="pinSave">Change PIN</button>
+                </form>
+            </section>
+        </div>
+    </div>
+
+    <!-- Confirm -->
+    <div class="modal top" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle" hidden>
+        <div class="pf-dialog cf">
+            <div class="cf-body">
+                <h3 id="cfTitle"></h3>
+                <p id="cfText"></p>
+            </div>
+            <div class="cf-foot">
+                <button type="button" class="btn-line" id="cfBack" data-focus>Go Back</button>
+                <button type="button" class="btn-fill" id="cfOk">Change PIN</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="Register.js"></script>
+</body>
+
+</html>

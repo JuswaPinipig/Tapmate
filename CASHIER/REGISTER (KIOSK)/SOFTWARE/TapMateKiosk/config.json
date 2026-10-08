@@ -1,0 +1,20 @@
+{
+  "supabase_url": "https://inoafkspgsxzxarzboqq.supabase.co",
+  "supabase_key": "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z",
+  "currency": "₱",
+  "model_path": "models/best.pt",
+  "camera_index": 0,
+  "camera_width": 1280,
+  "camera_height": 720,
+  "confidence": 0.60,
+  "confirm_frames": 6,
+  "image_size": 640,
+  "idle_seconds": 30,
+  "confirm_seconds": 30,
+  "rfid": {
+    "mode": "keyboard",
+    "serial_port": "COM3",
+    "baud": 9600
+  },
+  "fullscreen": false
+}
