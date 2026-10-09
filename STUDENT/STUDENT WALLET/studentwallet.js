@@ -296,6 +296,8 @@
         $("pl-code").textContent = fmtCode(r.code);
         PL.exp = new Date(r.expires_at).getTime();
         var base = cfg.PARENT_LINK_URL;
+        // A phone can't follow a relative path, so turn it into a full https://... address first.
+        if (base) { try { base = new URL(base, location.href).href; } catch (_) { } }
         drawQr(base ? base + (base.indexOf("?") < 0 ? "?" : "&") + "link=" + encodeURIComponent(r.qr_token) : "tapmate-link:" + r.qr_token);
         $("qr-box").classList.remove("stale");
         if (manual) toast("New code ready.");

@@ -7,5 +7,5 @@ window.APP_CONFIG = {
     HISTORY_URL: "../HISTORY/studenthistory.html",   // e.g. "../STUDENT HISTORY/studenthistory.html"
     TOPUP_URL: "../TOP-UP/student-top-up.html",
     // Parent page that redeems the QR / 6-digit code. QR encodes: PARENT_LINK_URL + "?link=<token>"
-    PARENT_LINK_URL: ""
+    PARENT_LINK_URL: "../../PARENT/PARENT SIGN UP/PARENT_SIGN_UP.html"   // path from THIS page; adjust to where PARENT_SIGN_UP.html really lives
 };

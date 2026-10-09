@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>TapMate – Parent Sign Up</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="PARENT_SIGN_UP.css">
+</head>
+
+<body>
+    <main class="wrap">
+        <div class="card">
+            <h1>Parent sign up</h1>
+
+            <!-- Checking the link -->
+            <div id="s-load" class="state">
+                <p>Checking your link…</p>
+            </div>
+
+            <!-- No / bad link: type the 6-digit code instead -->
+            <form id="s-code" class="state" hidden novalidate>
+                <p class="lead" id="code-lead">Enter the 6-digit code shown on your child's TapMate wallet.</p>
+                <label>6-digit code
+                    <input id="code" inputmode="numeric" maxlength="7" autocomplete="off" placeholder="000 000">
+                </label>
+                <p class="msg" id="code-msg" role="alert" hidden></p>
+                <button class="btn" type="submit">Continue</button>
+            </form>
+
+            <!-- Sign-up steps -->
+            <form id="s-form" class="state" hidden novalidate>
+                <p class="linking" id="linking"></p>
+                <ol class="steps" id="steps" aria-label="Progress">
+                    <li class="on">Contact</li>
+                    <li>Password</li>
+                    <li>PIN</li>
+                </ol>
+
+                <section data-step="1">
+                    <label>First name <input id="first" autocomplete="given-name" maxlength="60"></label>
+                    <label>Last name <input id="last" autocomplete="family-name" maxlength="60"></label>
+                    <label>Email or mobile number
+                        <input id="contact" autocomplete="username" placeholder="you@email.com or 09XX XXX XXXX">
+                    </label>
+                </section>
+
+                <section data-step="2" hidden>
+                    <label>Create a password
+                        <input id="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters">
+                    </label>
+                    <label>Confirm password
+                        <input id="pw2" type="password" autocomplete="new-password">
+                    </label>
+                    <p class="hint">Use at least 8 characters with a letter and a number.</p>
+                </section>
+
+                <section data-step="3" hidden>
+                    <label>Create a 4-digit PIN
+                        <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"
+                            placeholder="••••">
+                    </label>
+                    <label>Confirm PIN
+                        <input id="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off"
+                            placeholder="••••">
+                    </label>
+                    <p class="hint">You'll use this PIN to confirm sensitive actions. Don't share it.</p>
+                </section>
+
+                <p class="msg" id="msg" role="alert" hidden></p>
+                <div class="row">
+                    <button class="btn line" type="button" id="back" hidden>Back</button>
+                    <button class="btn" type="submit" id="next">Next</button>
+                </div>
+            </form>
+
+            <!-- Done -->
+            <div id="s-done" class="state" hidden>
+                <div class="ok">✓</div>
+                <h2>Account created</h2>
+                <p class="lead" id="done-text">Your account is ready and linked. You can now log in.</p>
+                <a class="btn" id="login-link" href="#">Go to login</a>
+            </div>
+
+            <!-- Dead end -->
+            <div id="s-fail" class="state" hidden>
+                <h2 id="fail-title">Can't continue</h2>
+                <p class="lead" id="fail-text"></p>
+                <button class="btn line" type="button" id="retry">Enter a code instead</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="PARENT_SIGN_UP.js"></script>
+</body>
+
+</html>
