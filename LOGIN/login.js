@@ -20,6 +20,7 @@ const PIN_IDLE_MS = 15000;       // PIN screen fades back to "tap your card" aft
 const EMAIL_IDLE_MS = 60000;     // email form fades back to "tap your card" after this long untouched
 const EMAIL_RE = /^[^@\s]+@sjc\.edu\.ph$/i;   // school emails only
 const FADE_MS = 350;             // should match the CSS opacity transition (.35s)
+const SLIDE_MS = 450;            // should match the CSS slide transition (.45s)
 const COLLAPSE_MS = 500;         // should match the CSS transition (.45s)
 const REDIRECT_DELAY_MS = 1400;  // how long the spinner shows before the next page opens
 const SESSION_KEY = "tapmate_session";
@@ -31,7 +32,9 @@ const SESSION_KEY = "tapmate_session";
 const REDIRECTS = {
     student: "../STUDENT/STUDENT WALLET/studentwallet.html",
     cashier: "../CASHIER/REGISTER (KIOSK)/Register.html",
-    admin: "../ADMIN/ACCOUNT MANAGEMENT/adminaccountmanagement.html"
+    admin: "../ADMIN/ACCOUNT MANAGEMENT/adminaccountmanagement.html",
+    // Parent dashboard: change this path to match your folder name
+    parent: "../PARENT/PARENT OVERVIEW/parentoverview.html"
 };
 
 // ------------------------------------------------------------
@@ -41,7 +44,6 @@ const tapEl = document.getElementById("tap");
 const subEl = document.getElementById("sub");
 const messageEl = document.getElementById("message");
 const detailEl = document.getElementById("detail");
-const forgotEl = document.getElementById("forgotId");
 const noticeEl = document.getElementById("notice");
 const statusEl = document.getElementById("status");
 const pinAreaEl = document.getElementById("pinArea");
@@ -50,17 +52,32 @@ const emailAreaEl = document.getElementById("emailArea");
 const emailInputEl = document.getElementById("emailInput");
 const rfidInputEl = document.getElementById("rfidInput");
 const emailBtnEl = document.getElementById("emailBtn");
+const parentAreaEl = document.getElementById("parentArea");
+const parentContactEl = document.getElementById("parentContact");
+const parentPwEl = document.getElementById("parentPw");
+const parentPinEl = document.getElementById("parentPin");
+const parentBtnEl = document.getElementById("parentBtn");
+const parentLinkEl = document.getElementById("parentLink");
+const studentLinkEl = document.getElementById("studentLink");
+const tabsEl = document.getElementById("tabs");
+const tabRfidEl = document.getElementById("tabRfid");
+const tabManualEl = document.getElementById("tabManual");
+const swipeEl = document.getElementById("swipe");
+const trackEl = document.getElementById("track");
+const paneRfidEl = document.getElementById("paneRfid");
+const paneManualEl = document.getElementById("paneManual");
 
 const SUB_TAP = "Tap your ID card on the reader.";
 const SUB_EMAIL = "Sign in with your school email.";
-const FORGOT_TEXT = "FORGOT YOUR ID?";
-const BACK_TEXT = "BACK TO CARD TAP";
+const SUB_PARENT = "Parent login.";
 
 // waiting -> (card tapped) busy -> pin -> (PIN entered) busy -> done / waiting
 // waiting -> email (form open) -> busy -> pin -> ...
 let state = "waiting";
 let view = "tap";             // which screen is showing: "tap" or "pin"
 let viewTimer = null;
+let swapTimer = null;
+let heightTimer = null;
 let currentUid = null;
 let pin = "";
 let buffer = "";
@@ -78,8 +95,8 @@ let idleTimer = null;
 document.addEventListener("keydown", (e) => {
     // Typing inside the email form is normal typing: leave it alone
     // (the form handles Enter itself; Esc closes it).
-    if (e.target.closest && e.target.closest("#emailArea")) {
-        if (e.key === "Escape") exitEmail();
+    if (e.target.closest && e.target.closest("#emailArea, #parentArea")) {
+        if (e.key === "Escape") { if (view === "parent") exitParent(); else exitEmail(); }
         return;
     }
 
@@ -107,12 +124,81 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-// "Forgot your ID?" link: opens the email form (and becomes "Back to card tap")
-forgotEl.addEventListener("click", (e) => {
-    e.preventDefault();
+// ------------------------------------------------------------
+// 4a. LOGIN METHOD: tabs + swipe  (RFID | Manual login)
+// ------------------------------------------------------------
+function goRfid() {
     if (state === "busy" || state === "done") return;
-    if (view === "email") exitEmail(); else openEmail();
+    if (view === "email") exitEmail();
+    else if (view === "parent") exitParent();
+}
+
+function goManual() {
+    if (state === "busy" || state === "done") return;
+    if (view === "tap") openEmail();       // not while a PIN is being entered
+}
+
+tabRfidEl.addEventListener("click", goRfid);
+tabManualEl.addEventListener("click", goManual);
+tabsEl.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") { goManual(); tabManualEl.focus(); }
+    else if (e.key === "ArrowLeft") { goRfid(); tabRfidEl.focus(); }
 });
+
+// "Login as parent" (under the Continue button) and the way back
+parentLinkEl.addEventListener("click", () => {
+    if (state === "busy" || state === "done") return;
+    openParent();
+});
+studentLinkEl.addEventListener("click", () => {
+    if (state === "busy" || state === "done") return;
+    openEmail();
+});
+
+// Swipe left / right on the panes. The panes follow the finger, then snap.
+let drag = null;
+swipeEl.addEventListener("pointerdown", (e) => {
+    if (state === "busy" || state === "done" || view === "pin") return;   // no swiping while a PIN is being entered
+    if (e.target.closest("input, button, a")) return;      // never hijack typing or taps
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, t: Date.now(), active: false };
+});
+swipeEl.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.active) {
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+        drag.active = true;
+        try { swipeEl.setPointerCapture(e.pointerId); } catch (_) { }
+        trackEl.classList.add("dragging");
+    }
+    drag.dx = dx;
+    const w = swipeEl.clientWidth;
+    const base = paneOf(view) === 1 ? -w : 0;
+    trackEl.style.transform = "translateX(" + Math.max(-w, Math.min(0, base + dx)) + "px)";
+});
+function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    if (!d.active) return;
+    trackEl.classList.remove("dragging");
+    trackEl.style.transform = "";                           // the CSS class glides it into place
+    const far = Math.abs(d.dx) > swipeEl.clientWidth * 0.2;
+    const quick = Math.abs(d.dx) > 30 && Math.abs(d.dx) / Math.max(1, Date.now() - d.t) > 0.5;
+    if (far || quick) { if (d.dx < 0) goManual(); else goRfid(); }
+}
+// Never let the browser start dragging an image (the "ghost" copy that follows the pointer)
+document.addEventListener("dragstart", (e) => e.preventDefault());
+swipeEl.addEventListener("pointerup", endDrag);
+swipeEl.addEventListener("pointercancel", endDrag);
+
+parentAreaEl.addEventListener("submit", submitParent);
+[parentContactEl, parentPwEl, parentPinEl].forEach((el) => el.addEventListener("input", () => {
+    armParentIdle();
+    hideMessage();
+}));
+parentPinEl.addEventListener("input", () => { parentPinEl.value = parentPinEl.value.replace(/\D/g, ""); });
 
 emailAreaEl.addEventListener("submit", submitEmail);
 [emailInputEl, rfidInputEl].forEach((el) => el.addEventListener("input", () => {
@@ -221,6 +307,106 @@ async function submitEmail(e) {
 }
 
 // ------------------------------------------------------------
+// 4c. PARENT SIGN-IN
+//     Email or mobile + password + 4-digit PIN, all checked together
+//     on the server by parent_login() (see parent_login.sql). It hands
+//     back the same kind of session token as a card login.
+// ------------------------------------------------------------
+function openParent() {
+    clearTimeout(idleTimer);
+    currentUid = null;
+    pin = "";
+    buffer = "";
+    clearStatusNow();
+    clearEmailFields();
+    clearParentFields();
+    state = "parent";
+    setView("parent");
+    armParentIdle();
+}
+
+function exitParent() {
+    clearTimeout(idleTimer);
+    clearParentFields();
+    state = "waiting";
+    clearStatusNow();
+    setView("tap");
+}
+
+function armParentIdle() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { if (state === "parent") exitParent(); }, EMAIL_IDLE_MS);
+}
+
+function clearParentFields() {
+    parentContactEl.value = "";
+    parentPwEl.value = "";
+    parentPinEl.value = "";
+    parentBtnEl.disabled = false;
+}
+
+async function submitParent(e) {
+    e.preventDefault();
+    if (state !== "parent") return;
+
+    const contact = parentContactEl.value.trim();
+    const password = parentPwEl.value;
+    const pinCode = parentPinEl.value;
+
+    if (!contact || !password || !pinCode) {
+        return showMessage("Please fill in all three fields.", "Enter your email or mobile number, password and PIN.");
+    }
+    if (!/^\d{4}$/.test(pinCode)) {
+        return showMessage("Your PIN is 4 digits.", "Enter the PIN you saved when you signed up.");
+    }
+
+    state = "busy";
+    clearTimeout(idleTimer);
+    parentBtnEl.disabled = true;
+
+    let res;
+    try {
+        const { data, error } = await db.rpc("parent_login", { p_contact: contact, p_password: password, p_pin: pinCode });
+        if (error) throw error;
+        res = data;
+    } catch (err) {
+        console.error("parent_login failed:", err);
+        state = "parent";
+        parentBtnEl.disabled = false;
+        armParentIdle();
+        return showMessage("Can't reach TapMate right now.", "Check the connection and try again.");
+    }
+
+    if (res.ok) {
+        clearParentFields();
+        return loginSuccess(res);
+    }
+
+    if (res.reason === "locked") {
+        const mins = Math.max(1, Math.ceil((res.retry_after_seconds || 0) / 60));
+        clearParentFields();
+        return failWithNotice("Too many wrong attempts. Try again in " + mins +
+            (mins === 1 ? " minute" : " minutes") + " or reach out to an admin.");
+    }
+    if (res.reason === "inactive") {
+        clearParentFields();
+        return failWithNotice("This account is inactive. Please reach out to an admin.");
+    }
+
+    // Same message whichever of the three is wrong, on purpose
+    state = "parent";
+    parentBtnEl.disabled = false;
+    parentPwEl.value = "";
+    parentPinEl.value = "";
+    parentAreaEl.classList.remove("shake");
+    void parentAreaEl.offsetWidth;
+    parentAreaEl.classList.add("shake");
+    parentPwEl.focus();
+    armParentIdle();
+    showMessage("Incorrect email, password or PIN.", "Check them and try again.");
+}
+
+// ------------------------------------------------------------
 // 5. STEP 1: CARD TAPPED
 // ------------------------------------------------------------
 async function handleScan(uid) {
@@ -228,6 +414,7 @@ async function handleScan(uid) {
 
     // A new tap always starts over (also replaces a half-typed PIN or the email form)
     clearEmailFields();
+    clearParentFields();
     pin = "";
     currentUid = null;
     state = "busy";
@@ -427,6 +614,7 @@ function failWithNotice(text) {
     currentUid = null;
     pin = "";
     clearEmailFields();
+    clearParentFields();
     if (view !== "tap") setView("tap");
     state = "waiting";
     noticeEl.textContent = text;
@@ -460,24 +648,99 @@ function shakeDots() {
     pinDotsEl.classList.add("shake");
 }
 
-// Fade between the screens: "tap", "pin" or "email"
+// Two panes slide (RFID = 0, Manual = 1); inside a pane, screens fade.
+//   pane 0: "tap", "pin"      pane 1: "email", "parent"
+const paneOf = (m) => (m === "tap" || m === "pin") ? 0 : 1;
+
+function applyPane(idx, m) {
+    if (idx === 0) {
+        tapEl.hidden = m !== "tap";
+        pinAreaEl.hidden = m !== "pin";
+    } else {
+        emailAreaEl.hidden = m !== "email";
+        parentAreaEl.hidden = m !== "parent";
+    }
+}
+
+// Changes what is showing and glides the window to the new height
+function morph(apply) {
+    const h0 = swipeEl.offsetHeight;
+    swipeEl.style.height = "";
+    apply();
+    const h1 = swipeEl.offsetHeight;
+    if (h0 === h1) return;
+    swipeEl.style.height = h0 + "px";
+    void swipeEl.offsetHeight;
+    swipeEl.style.height = h1 + "px";
+    clearTimeout(heightTimer);
+    heightTimer = setTimeout(() => { swipeEl.style.height = ""; }, SLIDE_MS);
+}
+
+function focusFor(mode) {
+    if (mode === "email") emailInputEl.focus({ preventScroll: true });
+    else if (mode === "parent") parentContactEl.focus({ preventScroll: true });
+}
+
 function setView(mode, name = "") {
+    const prev = view;
     view = mode;
     clearTimeout(viewTimer);
-    const els = [tapEl, pinAreaEl, emailAreaEl, subEl];
-    els.forEach((el) => { el.style.opacity = "0"; });
+    clearTimeout(swapTimer);
 
-    viewTimer = setTimeout(() => {
-        tapEl.hidden = mode !== "tap";
-        pinAreaEl.hidden = mode !== "pin";
-        emailAreaEl.hidden = mode !== "email";
+    const idx = paneOf(mode);
+    const cross = paneOf(prev) !== idx;
+
+    // Swiping and the dots are switched off while the PIN is being entered,
+    // and come back when the PIN screen closes (idle timeout, Esc, or a finished login)
+    const pinning = mode === "pin";
+    tabsEl.classList.toggle("locked", pinning);
+    tabRfidEl.disabled = pinning;
+    tabManualEl.disabled = pinning;
+    if (pinning && drag) {                                  // a swipe that was mid-way: drop it
+        drag = null;
+        trackEl.classList.remove("dragging");
+        trackEl.style.transform = "";
+    }
+
+    // Tabs, sliding track and focus guard follow straight away
+    tabsEl.classList.toggle("manual", idx === 1);
+    trackEl.classList.toggle("manual", idx === 1);
+    tabRfidEl.setAttribute("aria-selected", idx === 0 ? "true" : "false");
+    tabManualEl.setAttribute("aria-selected", idx === 1 ? "true" : "false");
+    paneRfidEl.inert = idx !== 0;
+    paneManualEl.inert = idx !== 1;
+
+    const screens = [tapEl, pinAreaEl, emailAreaEl, parentAreaEl];
+    const setSub = () => {
         subEl.textContent = mode === "pin" ? "Welcome" + (name ? ", " + name : "")
-            : mode === "email" ? SUB_EMAIL : SUB_TAP;
+            : mode === "email" ? SUB_EMAIL
+                : mode === "parent" ? SUB_PARENT : SUB_TAP;
         subEl.classList.toggle("welcome", mode === "pin");
-        forgotEl.textContent = mode === "email" ? BACK_TEXT : FORGOT_TEXT;
-        void subEl.offsetWidth; // apply the swap, then fade the new screen in
+        void subEl.offsetWidth; // apply the swap, then fade the new text in
+    };
+
+    if (cross) {
+        // Slide to the other pane (its contents are set up first, so it arrives ready)
+        screens.forEach((el) => { el.style.opacity = ""; });
+        subEl.style.opacity = "0";
+        morph(() => applyPane(idx, mode));
+        viewTimer = setTimeout(() => { setSub(); subEl.style.opacity = ""; }, FADE_MS);
+        // Once the old pane is out of sight, put it back to its starting screen
+        swapTimer = setTimeout(() => {
+            morph(() => applyPane(idx === 0 ? 1 : 0, idx === 0 ? "email" : "tap"));
+            focusFor(mode);
+        }, SLIDE_MS);
+        return;
+    }
+
+    // Same pane: fade out, swap, fade in
+    const els = screens.concat(subEl);
+    els.forEach((el) => { el.style.opacity = "0"; });
+    viewTimer = setTimeout(() => {
+        morph(() => applyPane(idx, mode));
+        setSub();
         els.forEach((el) => { el.style.opacity = ""; });
-        if (mode === "email") emailInputEl.focus({ preventScroll: true });
+        focusFor(mode);
     }, FADE_MS);
 }
 
