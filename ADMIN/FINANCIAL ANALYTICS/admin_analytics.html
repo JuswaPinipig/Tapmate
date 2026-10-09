@@ -71,7 +71,7 @@
                     </svg>
                     <span class="nav-label">Stock &amp; Inventory</span>
                 </a>
-                <a class="nav-btn" href="payLaterLedger.html" data-label="Pay Later Ledger">
+                <a class="nav-btn" href="../PAY LATER LEDGERS/pay-later-ledgers.html" data-label="Pay Later Ledger">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4 4h12a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z" />
@@ -234,24 +234,81 @@
                 </article>
             </section>
 
-            <!-- Refunds & disputes -->
-            <section class="card panel refunds-panel">
+            <!-- Refunds & disputes  <->  Top-ups (swipeable) -->
+            <section class="card panel refunds-panel carousel" id="car" aria-roledescription="carousel"
+                aria-label="Refunds and top-ups">
                 <div class="card-head">
-                    <h2>Refunds &amp; disputes</h2>
-                    <span class="count" id="refundCount"></span>
-                </div>
-                <div class="panel-body refunds-body">
-                    <div class="mini-stats">
-                        <div class="mini"><small>Requests</small><b id="rfTotal">&mdash;</b></div>
-                        <div class="mini"><small>Pending</small><b id="rfPending">&mdash;</b></div>
-                        <div class="mini"><small>Approved</small><b id="rfApproved">&mdash;</b></div>
-                        <div class="mini"><small>Rejected</small><b id="rfRejected">&mdash;</b></div>
-                        <div class="mini wide"><small>Amount refunded</small><b id="rfAmount">&mdash;</b></div>
+                    <h2 id="carTitle">Refunds &amp; disputes</h2>
+                    <span class="count" id="carCount"></span>
+                    <div class="car-nav">
+                        <button type="button" class="icon-btn car-btn" id="carPrev" aria-label="Previous panel">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m15 6-6 6 6 6" />
+                            </svg>
+                        </button>
+                        <div class="car-dots" id="carDots" role="tablist" aria-label="Choose panel">
+                            <button type="button" class="car-dot on" role="tab" aria-selected="true"
+                                aria-label="Refunds &amp; disputes" data-i="0"></button>
+                            <button type="button" class="car-dot" role="tab" aria-selected="false" aria-label="Top-ups"
+                                data-i="1"></button>
+                        </div>
+                        <button type="button" class="icon-btn car-btn" id="carNext" aria-label="Next panel">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m9 6 6 6-6 6" />
+                            </svg>
+                        </button>
                     </div>
-                    <div class="rf-items">
-                        <h3>Items most often refunded</h3>
-                        <ul class="bar-list" id="rfItemList"></ul>
-                        <p class="panel-empty" id="rfItemEmpty" hidden>No refund requests in this period.</p>
+                </div>
+
+                <div class="car-viewport" id="carViewport" tabindex="0" aria-live="polite">
+                    <div class="car-track" id="carTrack">
+
+                        <!-- Slide 1: refunds -->
+                        <div class="car-slide" data-title="Refunds &amp; disputes">
+                            <div class="panel-body refunds-body">
+                                <div class="mini-stats">
+                                    <div class="mini"><small>Requests</small><b id="rfTotal">&mdash;</b></div>
+                                    <div class="mini"><small>Pending</small><b id="rfPending">&mdash;</b></div>
+                                    <div class="mini"><small>Approved</small><b id="rfApproved">&mdash;</b></div>
+                                    <div class="mini"><small>Rejected</small><b id="rfRejected">&mdash;</b></div>
+                                    <div class="mini wide"><small>Amount refunded</small><b id="rfAmount">&mdash;</b>
+                                    </div>
+                                </div>
+                                <div class="rf-items">
+                                    <h3>Items most often refunded</h3>
+                                    <ul class="bar-list" id="rfItemList"></ul>
+                                    <p class="panel-empty" id="rfItemEmpty" hidden>No refund requests in this period.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Slide 2: top-ups -->
+                        <div class="car-slide" data-title="Top-up records">
+                            <div class="panel-body refunds-body">
+                                <div class="mini-stats">
+                                    <div class="mini"><small>Top-up requests</small><b id="tuTotal">&mdash;</b></div>
+                                    <div class="mini"><small>Pending</small><b id="tuPending">&mdash;</b></div>
+                                    <div class="mini"><small>Approved</small><b id="tuApproved">&mdash;</b></div>
+                                    <div class="mini"><small>Rejected</small><b id="tuRejected">&mdash;</b></div>
+                                    <div class="mini"><small>Topped up (approved)</small><b id="tuAmount">&mdash;</b>
+                                    </div>
+                                    <div class="mini"><small>Average top-up</small><b id="tuAvg">&mdash;</b></div>
+                                    <div class="mini wide hl"><small>Total student wallet balance</small><b
+                                            id="tuWallet">&mdash;</b>
+                                        <span class="mini-sub" id="tuWalletSub">&nbsp;</span>
+                                    </div>
+                                </div>
+                                <div class="rf-items">
+                                    <h3>Top-up decisions</h3>
+                                    <ul class="bar-list" id="tuBarList"></ul>
+                                    <p class="panel-empty" id="tuEmpty" hidden>No top-up requests in this period.</p>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </section>

@@ -1942,3 +1942,33 @@ li .via {
     background: color-mix(in srgb, var(--maroon) 14%, var(--paper));
     color: var(--ink)
 }
+
+/* Top-up / balance update details popup */
+.act-dl {
+    margin: 0
+}
+
+.act-dl>div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-top: 1px solid var(--gray-soft)
+}
+
+.act-dl>div:first-child {
+    border-top: 0
+}
+
+.act-dl dt {
+    color: var(--gray);
+    font-size: .85rem;
+    flex: none
+}
+
+.act-dl dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere
+}

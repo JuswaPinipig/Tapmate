@@ -1,7 +1,7 @@
 (function () {
     var cfg = window.APP_CONFIG || {};
     var SESSION_KEY = "tapmate_session";   // set by login.js after RFID + PIN (same as the wallet)
-    var POLL_MS = 15000, PAGE = 10;
+    var POLL_MS = 15000, PAGE = 5;
     var $ = function (id) { return document.getElementById(id); };
     var db = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
     var state = { purchases: [], topups: [], pOk: true, tOk: true, profile: null, pin: null, tab: "purchases", range: "all", page: 1, sig: "" };
@@ -215,7 +215,7 @@
         renderPager(more, pages);
     }
 
-    /* pagination: ‹ 1 2 3 … 9 10 ›, 10 rows per page */
+    /* pagination: ‹ 1 2 3 … 9 10 ›, 5 rows per page */
     function renderPager(nav, pages) {
         nav.innerHTML = "";
         if (pages <= 1) { nav.hidden = true; return; }
@@ -236,7 +236,7 @@
         btn("‹", state.page - 1, { aria: "Previous page", disabled: state.page === 1 });
         var nums = [], last = 0;
         for (var i = 1; i <= pages; i++) {
-            if (i === 1 || i === pages || Math.abs(i - state.page) <= 1 || (state.page <= 3 && i <= 5) || (state.page >= pages - 2 && i >= pages - 4)) nums.push(i);
+            if (pages <= 7 || i === 1 || i === pages || Math.abs(i - state.page) <= 1 || (state.page <= 3 && i <= 5) || (state.page >= pages - 2 && i >= pages - 4)) nums.push(i);
         }
         nums.forEach(function (n) {
             if (last && n - last > 1) nav.appendChild(el("span", "pg-gap", "…"));
@@ -267,18 +267,40 @@
     function topupRow(t) {
         var li = el("li", "hrow");
         var main = el("div", "h-main");
-        var tm2 = topupMethod(t.method); main.appendChild(el("span", "what", /top-?up/i.test(tm2) ? tm2 : tm2 + " top-up"));
+        var st = topupStatus(t.status), adj = t.kind === "adjustment";
+        var tm2 = topupMethod(t.method);
+        main.appendChild(el("span", "what", /top-?up/i.test(tm2) ? tm2 : tm2 + " top-up"));
         main.appendChild(el("span", "when", when(t.created_at)));
         if (t.reference_no) main.appendChild(el("span", "when ref", "Ref " + t.reference_no));
         var side = el("div", "h-side");
-        var st = topupStatus(t.status);
         side.appendChild(el("span", "amt" + (st[0] === "approved" ? " in" : ""), (st[0] === "approved" ? "+" : "") + money(t.amount)));
         side.appendChild(el("span", "st " + st[0], st[1]));
         li.appendChild(main); li.appendChild(side);
+        if (adj || st[0] !== "pending") {
+            var b = el("button", "eye"); b.type = "button"; b.innerHTML = EYE;
+            b.setAttribute("aria-label", "View details"); b.title = "View details";
+            b.onclick = function () { openTopupDetail(t, st[0]); };
+            li.appendChild(b);
+        }
         return li;
     }
 
-    /* tabs + date range (pagination is in renderPager) */
+    // Details popup: approved -> admin, date & time, amount; rejected -> admin, date & time, reason
+    var tdEl = $("td-modal");
+    function openTopupDetail(t, st) {
+        var rej = st === "rejected" && t.kind !== "adjustment";
+        $("td-title").textContent = t.kind === "adjustment" ? "Balance updated" : rej ? "Top-up rejected" : "Top-up approved";
+        var dl = $("td-dl"); dl.innerHTML = "";
+        [["Admin", t.admin_name || "–"], ["Date & time", when(t.reviewed_at || t.created_at)],
+        rej ? ["Reason", t.reason || "No reason given."] : ["Amount", money(t.amount)]].forEach(function (r) {
+            var d = el("div"); d.appendChild(el("dt", null, r[0])); d.appendChild(el("dd", null, r[1])); dl.appendChild(d);
+        });
+        openModal(tdEl);
+    }
+    tdEl.addEventListener("mousedown", function (e) { if (e.target === tdEl) closeModal(tdEl); });
+    tdEl.querySelector("[data-close]").onclick = function () { closeModal(tdEl); };
+
+    /* tabs (pagination is in renderPager) */
     function setTab(t) {
         state.tab = t; state.page = 1;
         ["purchases", "topups"].forEach(function (n) { $("tab-" + n).setAttribute("aria-selected", n === t); });
@@ -286,13 +308,6 @@
     }
     $("tab-purchases").onclick = function () { setTab("purchases"); };
     $("tab-topups").onclick = function () { setTab("topups"); };
-    document.querySelectorAll("#range button").forEach(function (b) {
-        b.onclick = function () {
-            state.range = b.dataset.range; state.page = 1;
-            document.querySelectorAll("#range button").forEach(function (x) { x.setAttribute("aria-pressed", x === b); });
-            render();
-        };
-    });
 
     /* ---------- virtual e-receipt (mirrors the paper receipt the kiosk prints) ---------- */
     function row(parent, a, b, cls) {

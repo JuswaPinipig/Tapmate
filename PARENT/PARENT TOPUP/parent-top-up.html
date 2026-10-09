@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Parent Top Up</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="parent-top-up.css">
+</head>
+
+<body class="parent">
+    <div class="shell init" id="shell">
+        <aside class="side" id="side" aria-label="Main menu">
+            <div class="side-head">
+                <img class="logo" src="../../LOGIN/assets/tapmate%20logo.png" alt="TapMate">
+                <button class="icon-btn" id="collapse" aria-expanded="true" aria-label="Collapse menu"><svg
+                        viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                    </svg></button>
+            </div>
+            <div class="role-chip" title="Parent account"><svg viewBox="0 0 24 24">
+                    <circle cx="9" cy="8" r="3.2" />
+                    <path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+                    <circle cx="17.5" cy="9.5" r="2.3" />
+                    <path d="M17 14.2a4 4 0 0 1 4 3.8v1" />
+                </svg><span class="lbl">Parent account</span></div>
+            <nav class="nav">
+                <a href="#topup" data-view="topup" aria-current="page" title="Top Up"><svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 8v8M8 12h8" />
+                    </svg><span class="lbl">Top Up</span></a>
+                <a href="#paylater" data-view="paylater" title="Pay Later"><svg viewBox="0 0 24 24">
+                        <path d="M4 4h12a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z" />
+                        <path d="M9 9h6M9 13h6" />
+                    </svg><span class="lbl">Pay Later</span></a>
+            </nav>
+            <div class="side-foot">
+                <button class="me" id="open-profile" title="My profile"><span class="av" id="side-av"></span><span
+                        class="lbl me-t"><b id="side-name">–</b><small>Parent · View profile</small></span></button>
+                <button class="logout" id="signout" title="Log Out"><svg viewBox="0 0 24 24">
+                        <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                        <path d="M15 8l4 4-4 4M19 12H9" />
+                    </svg><span class="lbl">Log Out</span></button>
+            </div>
+        </aside>
+        <div class="scrim" id="scrim"></div>
+        <div class="content">
+            <header class="mbar"><button class="icon-btn dark" id="menu" aria-label="Open menu"><svg
+                        viewBox="0 0 24 24">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                    </svg></button><b>Parent Top Up</b></header>
+            <main>
+                <p class="err" id="app-err" role="alert" hidden></p>
+
+                <!-- Shown when this parent has no linked student yet -->
+                <section class="card empty-card" id="no-child" hidden>
+                    <h2>No student linked yet</h2>
+                    <p class="how">Top up and Pay Later are available once a student is linked to your account. Ask the
+                        student to open the parent link in their wallet, then link here.</p>
+                </section>
+
+                <div id="app" hidden>
+                    <div class="child-bar" id="child-bar">
+                        <span class="ptag">Parent</span>
+                        <label for="child-sel">Student:</label>
+                        <select id="child-sel" class="sel"></select>
+                        <b id="child-one"></b>
+                    </div>
+
+                    <!-- ================= TOP UP ================= -->
+                    <section class="view" id="v-topup">
+                        <div class="hello">
+                            <h1>Top up your child's wallet</h1>
+                            <p>Pick an amount, pay with GCash, then upload your proof of payment. We'll read the
+                                reference number from it for you.</p>
+                        </div>
+                        <div class="tu-grid">
+                            <div class="tu-left">
+                                <section class="wallet" aria-label="Student wallet balance">
+                                    <div class="lbl-s" id="w-lbl">Student wallet balance</div>
+                                    <div class="num"><small id="cur"></small><span id="bal">–</span></div>
+                                    <div class="lbl-s upd" id="bal-updated"></div>
+                                </section>
+                                <section class="card tx" aria-label="Top-up history">
+                                    <div class="tx-head">
+                                        <h2>Top-up history</h2>
+                                    </div>
+                                    <ul id="hist"></ul>
+                                    <nav class="hist-pager" id="hist-pager" aria-label="Top-up history pages" hidden>
+                                    </nav>
+                                </section>
+                            </div>
+                            <form class="card tu" id="tu-form" novalidate>
+                                <div>
+                                    <span class="lab">1. Choose an amount</span>
+                                    <div class="chips" id="chips" role="group" aria-label="Top-up amount"></div>
+                                </div>
+                                <div class="slide" id="st-pay" inert>
+                                    <div>
+                                        <div class="in">
+                                            <div class="pay">
+                                                <img id="qr" alt="GCash QR code" width="220">
+                                                <p class="how" id="pay-cap">Scan with GCash and pay the exact amount.
+                                                </p>
+                                            </div>
+                                            <span class="lab">2. Upload proof of payment (.jpg or .png)</span>
+                                            <label class="drop" id="drop" for="file">
+                                                <b>Upload proof of payment</b><small>Tap to choose or drop a JPG or PNG,
+                                                    up to <span id="max-mb">–</span> MB</small>
+                                                <input id="file" type="file"
+                                                    accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+                                            </label>
+                                            <div class="proof" id="proof" hidden><img id="thumb"
+                                                    alt="Proof preview"><span id="fname"></span><button type="button"
+                                                    id="rm">Remove</button></div>
+                                            <p class="pd-msg" id="file-msg" role="alert" hidden></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="slide" id="st-ref" inert>
+                                    <div>
+                                        <div class="in">
+                                            <label class="lab" for="ref">3. Reference number <span
+                                                    id="ref-hint"></span></label>
+                                            <input class="num-in ref" id="ref" type="text" inputmode="numeric"
+                                                autocomplete="off">
+                                            <p class="ai-line" id="ai-line" aria-live="polite" hidden></p>
+                                            <div class="cnt"><span id="cnt">0</span>/<span id="ref-len">–</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="pd-msg" id="tu-msg" role="alert" hidden></p>
+                                <button type="submit" class="btn-fill pop" id="confirm" inert>Confirm top up</button>
+                            </form>
+                        </div>
+                    </section>
+
+                    <!-- ================= PAY LATER ================= -->
+                    <section class="view" id="v-paylater" hidden>
+                        <div class="hello">
+                            <h1>Pay Later</h1>
+                            <p>Let your child buy now and settle later. You control whether it's on, and you can see
+                                how much has built up.</p>
+                        </div>
+                        <div class="pl-grid">
+                            <section class="card pl" aria-label="Pay later status">
+                                <div class="pl-head">
+                                    <h2>Pay later for <span id="pl-name">–</span></h2>
+                                    <span class="badge" id="pl-badge">Not active</span>
+                                </div>
+                                <div class="stats">
+                                    <div class="stat"><small>Pay later limit</small><b id="pl-limit">–</b></div>
+                                    <div class="stat"><small>Accumulated</small><b id="pl-out">–</b></div>
+                                    <div class="stat"><small>Still available</small><b id="pl-avail">–</b></div>
+                                </div>
+                                <div class="bar-l" id="pl-bar" aria-hidden="true"><i></i></div>
+                                <p class="how" id="pl-usage"></p>
+                                <div class="rules">
+                                    <p>When pay later is active, your child can buy at the canteen even if their wallet
+                                        is short. The amount builds up here until it is paid, and it can never go above
+                                        the limit.</p>
+                                </div>
+                                <p class="pd-msg" id="pl-msg" role="alert" hidden></p>
+                                <button type="button" class="btn-fill" id="pl-toggle">Activate pay later</button>
+                            </section>
+                            <section class="card tx" aria-label="Pay later activity">
+                                <div class="tx-head">
+                                    <h2>Pay later activity</h2>
+                                </div>
+                                <ul id="pl-list"></ul>
+                            </section>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ================= Profile (view only + PIN) ================= -->
+    <div class="modal" id="profile-dlg" role="dialog" aria-modal="true" aria-labelledby="pd-title" hidden>
+        <div class="pf-dialog">
+            <div class="dlg-head">
+                <h2 id="pd-title">My profile</h2>
+                <button type="button" class="icon-btn dark" id="pd-close" aria-label="Close"><svg viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6 6 18" />
+                    </svg></button>
+            </div>
+            <section class="pd-box pd-profile">
+                <span class="av pd-avatar" id="pd-av" aria-hidden="true"></span>
+                <div class="pd-name" id="pd-name">–</div>
+                <span class="ptag">Parent</span>
+                <div class="pd-email" id="pd-email"></div>
+                <dl class="pd-info">
+                    <div>
+                        <dt>Phone</dt>
+                        <dd id="pd-phone">–</dd>
+                    </div>
+                    <div>
+                        <dt>Linked students</dt>
+                        <dd id="pd-kids">–</dd>
+                    </div>
+                </dl>
+                <p class="pd-note">Profile details are managed by the school and can't be edited here.</p>
+            </section>
+            <section class="pd-box">
+                <h3 class="pd-h">PIN management</h3>
+                <div class="pin-meter" id="pin-meter" aria-live="polite">
+                    <b id="pin-left">PIN changes remaining: 3/3</b>
+                    <small>You can change your PIN up to 3 times within a 24-hour period.</small>
+                </div>
+                <div class="pin-limit" id="pin-limit" hidden>
+                    <b>PIN change limit reached</b>
+                    <small id="pin-limit-t"></small>
+                </div>
+                <form id="pin-form" novalidate>
+                    <div class="pd-pins">
+                        <label><span>Current</span><input id="pin-cur" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>New</span><input id="pin-new" type="password" inputmode="numeric" maxlength="4"
+                                autocomplete="off" placeholder="••••"></label>
+                        <label><span>Confirm</span><input id="pin-new2" type="password" inputmode="numeric"
+                                maxlength="4" autocomplete="off" placeholder="••••"></label>
+                    </div>
+                    <p class="pd-msg" id="pin-err" role="alert" hidden></p>
+                    <button type="submit" class="btn-fill pd-wide" id="pin-save">Change PIN</button>
+                </form>
+            </section>
+        </div>
+    </div>
+
+    <!-- ================= Confirm prompt ================= -->
+    <div class="modal top" id="confirm-dlg" role="alertdialog" aria-modal="true" aria-labelledby="cf-title" hidden>
+        <div class="pf-dialog cf">
+            <div class="cf-body">
+                <h3 id="cf-title">Confirm</h3>
+                <p class="cf-ref" id="cf-ref"></p>
+                <p id="cf-text"></p>
+            </div>
+            <div class="cf-foot"><button type="button" class="btn-line" id="cf-back" data-focus>Cancel</button><button
+                    type="button" class="btn-fill" id="cf-ok">Confirm</button></div>
+        </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="parent-top-up.js"></script>
+</body>
+
+</html>

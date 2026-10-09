@@ -9,7 +9,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="studenthistory.css">
+    <link rel="stylesheet" href="studenthistory.css?v=6">
 </head>
 
 <body>
@@ -80,11 +80,6 @@
                                     aria-controls="h-panel">Purchase history</button>
                                 <button type="button" role="tab" id="tab-topups" aria-selected="false"
                                     aria-controls="h-panel">Top-up history</button>
-                            </div>
-                            <div class="filters" id="range" role="group" aria-label="Date range">
-                                <button type="button" data-range="all" aria-pressed="true">All time</button>
-                                <button type="button" data-range="month" aria-pressed="false">This month</button>
-                                <button type="button" data-range="7" aria-pressed="false">Last 7 days</button>
                             </div>
                         </div>
                         <div id="h-panel" role="tabpanel">
@@ -187,6 +182,21 @@
         </div>
     </div>
 
+    <!-- Top-up / balance update details -->
+    <div class="modal" id="td-modal" role="dialog" aria-modal="true" aria-labelledby="td-title" hidden>
+        <div class="pf-dialog">
+            <div class="dlg-head">
+                <h2 id="td-title">Details</h2>
+                <button type="button" class="icon-btn dark" data-close aria-label="Close"><svg viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6L6 18" />
+                    </svg></button>
+            </div>
+            <section class="pd-box">
+                <dl class="act-dl" id="td-dl"></dl>
+            </section>
+        </div>
+    </div>
+
     <!-- Profile (same as the wallet) -->
     <div class="modal" id="profile" role="dialog" aria-modal="true" aria-labelledby="pf-title" hidden>
         <div class="pf-dialog">
@@ -245,7 +255,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="studenthistory.js"></script>
+    <script src="studenthistory.js?v=6"></script>
 </body>
 
 </html>

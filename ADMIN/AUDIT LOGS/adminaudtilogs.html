@@ -70,7 +70,7 @@
                     </svg>
                     <span class="nav-label">Stock & Inventory</span>
                 </a>
-                <a class="nav-btn" href="../ACCOUNT MANAGEMENT/payLaterLedger.html" data-label="Pay Later Ledger">
+                <a class="nav-btn" href="../PAY LATER LEDGERS/pay-later-ledgers.html" data-label="Pay Later Ledger">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4 4h12a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z" />
@@ -218,7 +218,7 @@
                         <span class="ai-tag">Advisory only</span>
                         <span class="ai-mini" id="aiMini"></span>
                     </div>
-                    <button id="aiAnalyze" class="btn primary small" type="button">Analyze activity</button>
+                    <button id="aiAnalyze" class="btn primary small" type="button">Analyze again</button>
                 </div>
                 <div class="ai-collapse" id="aiCollapse">
                     <div class="ai-collapse-inner" id="aiInner">
@@ -321,18 +321,27 @@
         </div>
         <p class="diff-empty" id="dtEmpty" hidden></p>
 
-        <div id="dtAi" class="ai-explain" hidden aria-live="polite"></div>
-
         <div class="dlg-foot">
-            <button type="button" class="btn ghost" id="dtAiBtn">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z" />
-                </svg>
-                AI Explain
-            </button>
             <span class="spacer"></span>
             <button type="button" class="btn primary" id="dtDone">Close</button>
+        </div>
+    </dialog>
+
+    <!-- ================= Mark an AI-flagged incident as resolved ================= -->
+    <dialog id="incDialog" class="dialog audit-dlg inc-dlg" aria-labelledby="incTitle">
+        <div class="dlg-head">
+            <h3 id="incTitle">Mark as resolved</h3>
+        </div>
+        <p class="inc-what" id="incWhat"></p>
+        <label class="inc-field"><span id="incNoteLabel">Note (optional)</span>
+            <textarea id="incNote" rows="3" maxlength="1000"
+                placeholder="Optional: what was checked or fixed"></textarea>
+        </label>
+        <p class="inc-err" id="incErr" hidden role="alert"></p>
+        <div class="dlg-foot">
+            <span class="spacer"></span>
+            <button type="button" class="btn ghost" id="incCancel">Cancel</button>
+            <button type="button" class="btn primary" id="incSave">Mark resolved</button>
         </div>
     </dialog>
 

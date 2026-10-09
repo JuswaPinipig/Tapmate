@@ -180,6 +180,78 @@ window.addEventListener("resize", moveSliders);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveSliders);
 
 // ============================================================
+// 6b. SWIPEABLE PANEL (Refunds & disputes <-> Top-ups)
+//     Drag / swipe / arrow keys / buttons / dots. The track follows the finger,
+//     then eases to the nearest slide.
+// ============================================================
+(function initCarousel() {
+    const root = $("car"), vp = $("carViewport"), track = $("carTrack");
+    const slides = [...track.children], dots = [...$("carDots").children];
+    const prev = $("carPrev"), next = $("carNext"), title = $("carTitle");
+    let idx = 0, startX = 0, startY = 0, dx = 0, dragging = false, locked = null, w = 1;
+
+    function setH() {   // viewport height follows the active slide
+        vp.style.height = slides[idx].offsetHeight + "px";
+    }
+    function go(i, animate = true) {
+        idx = Math.max(0, Math.min(slides.length - 1, i));
+        track.style.transition = animate ? "" : "none";
+        track.style.transform = "translateX(" + (-idx * 100) + "%)";
+        slides.forEach((sl, n) => { sl.setAttribute("aria-hidden", String(n !== idx)); sl.toggleAttribute("inert", n !== idx); });
+        dots.forEach((d, n) => { d.classList.toggle("on", n === idx); d.setAttribute("aria-selected", String(n === idx)); });
+        prev.disabled = idx === 0; next.disabled = idx === slides.length - 1;
+        title.classList.add("swap");
+        setTimeout(() => { title.textContent = slides[idx].dataset.title; title.classList.remove("swap"); }, animate ? 140 : 0);
+        setH();
+    }
+    function down(e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (e.target.closest("button")) return;
+        dragging = true; locked = null; dx = 0; startX = e.clientX; startY = e.clientY; w = vp.clientWidth || 1;
+    }
+    function move(e) {
+        if (!dragging) return;
+        const mx = e.clientX - startX, my = e.clientY - startY;
+        if (locked === null && (Math.abs(mx) > 6 || Math.abs(my) > 6)) {
+            locked = Math.abs(mx) > Math.abs(my) ? "x" : "y";
+            if (locked === "x") { track.classList.add("dragging"); try { vp.setPointerCapture(e.pointerId); } catch (_) { } }
+        }
+        if (locked !== "x") return;
+        dx = mx;
+        // rubber-band at the ends
+        const atEdge = (idx === 0 && dx > 0) || (idx === slides.length - 1 && dx < 0);
+        const eff = atEdge ? dx * 0.3 : dx;
+        track.style.transition = "none";
+        track.style.transform = "translateX(calc(" + (-idx * 100) + "% + " + eff + "px))";
+    }
+    function up() {
+        if (!dragging) return;
+        dragging = false;
+        track.classList.remove("dragging");
+        if (locked === "x") {
+            const thr = Math.min(80, w * 0.18);
+            if (dx < -thr) go(idx + 1); else if (dx > thr) go(idx - 1); else go(idx);
+        }
+        locked = null;
+    }
+    vp.addEventListener("pointerdown", down);
+    vp.addEventListener("pointermove", move);
+    vp.addEventListener("pointerup", up);
+    vp.addEventListener("pointercancel", up);
+    vp.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") { e.preventDefault(); go(idx + 1); }
+        if (e.key === "ArrowLeft") { e.preventDefault(); go(idx - 1); }
+    });
+    vp.addEventListener("dragstart", (e) => e.preventDefault());
+    prev.addEventListener("click", () => go(idx - 1));
+    next.addEventListener("click", () => go(idx + 1));
+    dots.forEach((d) => d.addEventListener("click", () => go(Number(d.dataset.i))));
+    window.addEventListener("resize", setH);
+    if (window.ResizeObserver) slides.forEach((sl) => new ResizeObserver(setH).observe(sl));
+    go(0, false);
+})();
+
+// ============================================================
 // 7. STATE
 // ============================================================
 let range = "month";        // today | week | month | all
@@ -259,7 +331,7 @@ function renderSummary(s) {
 
     // refunds & disputes
     const rf = s.refunds || {};
-    $("refundCount").textContent = RANGE_LABEL[range];
+    $("carCount").textContent = RANGE_LABEL[range];
     $("rfTotal").textContent = num(rf.count);
     $("rfPending").textContent = num(rf.pending);
     $("rfApproved").textContent = num(rf.approved);
@@ -272,6 +344,23 @@ function renderSummary(s) {
         right: num(t.qty) + (num(t.qty) === 1 ? " refund" : " refunds"),
         value: num(t.qty)
     })));
+
+    // top-ups
+    const tu = s.topups || {};
+    $("tuTotal").textContent = num(tu.count);
+    $("tuPending").textContent = num(tu.pending);
+    $("tuApproved").textContent = num(tu.approved);
+    $("tuRejected").textContent = num(tu.rejected);
+    $("tuAmount").textContent = peso.format(num(tu.approved_amount));
+    $("tuAvg").textContent = peso.format(num(tu.avg));
+    $("tuWallet").textContent = peso.format(num(tu.wallet_total));
+    $("tuWalletSub").textContent = num(tu.wallet_accounts) + (num(tu.wallet_accounts) === 1 ? " student wallet" : " student wallets");
+    $("tuEmpty").hidden = num(tu.count) > 0;
+    barList($("tuBarList"), num(tu.count) ? [
+        { name: "Approved", right: num(tu.approved) + " \u00b7 " + peso.format(num(tu.approved_amount)), value: num(tu.approved) },
+        { name: "Rejected", right: num(tu.rejected) + " \u00b7 " + peso.format(num(tu.rejected_amount)), value: num(tu.rejected) },
+        { name: "Pending", right: num(tu.pending) + " \u00b7 " + peso.format(num(tu.pending_amount)), value: num(tu.pending) }
+    ] : []);
 }
 
 // ============================================================

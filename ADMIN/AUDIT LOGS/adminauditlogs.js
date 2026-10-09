@@ -18,7 +18,7 @@
     const EXPORT_LIMIT = 5000;
     // AI runs in a Supabase edge function (see supabase/functions/audit-ai). The OpenRouter key lives there, never here.
     const AI_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/audit-ai` : '';
-    const AI_TIMEOUT_MS = 35000;
+    const AI_TIMEOUT_MS = 60000;
 
     // Admins sign in with RFID + PIN; the login page stores a session token. Send it with every request.
     function cardToken() {
@@ -108,7 +108,7 @@
     /* ---------------- State ---------------- */
     const state = {
         module: '', action: '', admin: '', from: '', to: '', q: '', page: 1, rows: [], total: 0, loading: false,
-        actions: [], modules: [], ids: null, aiNote: '', aiQuery: ''
+        actions: [], modules: [], ids: null, riskFilter: '', aiNote: '', aiQuery: ''
     };
     let adminList = [];
     let reqId = 0;
@@ -193,10 +193,13 @@
     }
 
     /* ---------------- Data ---------------- */
+    // incident bookkeeping (resolve / status changes) is not an admin edit, so it stays out of the log and the analysis
+    const HIDDEN_ACTIONS = '(incident_resolve,incident_dismiss,incident_status)';
+
     async function query(opts = {}) {
         if (!sb) return demoQuery(opts);
 
-        let q = sb.from('audit_logs').select('*', { count: 'exact' }).order('created_at', { ascending: false });
+        let q = sb.from('audit_logs').select('*', { count: 'exact' }).not('action', 'in', HIDDEN_ACTIONS).order('created_at', { ascending: false });
         if (state.module) q = q.eq('module', state.module);
         if (state.action) q = q.eq('action', state.action);
         if (state.admin) q = q.eq('admin_code', state.admin);
@@ -246,7 +249,7 @@
             // page went out of range (e.g. after filtering): jump back
             const pages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
             if (state.page > pages) { state.page = pages; return load(); }
-            hideBanner(); render();
+            hideBanner(); render(); scheduleAnalyze();
         } catch (err) {
             if (my !== reqId) return;
             console.error(err);
@@ -270,7 +273,7 @@
     function render() {
         const rows = state.rows;
         const title = state.module ? `${MODULES[state.module]} activity` : 'All activity';
-        $('resultsTitle').textContent = title;
+        $('resultsTitle').textContent = state.riskFilter ? `${RISK_LABEL[state.riskFilter]} entries` : title;
         $('resultsCount').textContent = state.total ? `${state.total.toLocaleString()} ${state.total === 1 ? 'entry' : 'entries'}` : '';
         $('resetBtn').hidden = !filtersActive();
         $('exportBtn').disabled = !state.total;
@@ -286,7 +289,7 @@
                 <td class="what-cell"><span class="badge ${a.tone}">${esc(a.label)}</span><span class="txt">${esc(r.summary)}</span></td>
                 <td>${aiBadge(r.id)}</td>
                 <td class="right"><div class="row-actions"><button type="button" class="btn ghost small" data-view="${esc(r.id)}">View changes</button>
-                    <button type="button" class="btn ghost small ai-btn" data-explain="${esc(r.id)}" title="Ask AI to explain this entry">AI Explain</button></div>
+                    ${investigable(r.id) ? `<button type="button" class="btn small investigate-btn" data-investigate="${esc(r.id)}" title="Go to the incident this entry belongs to">Investigate</button>` : ''}</div>
                     <span class="chg-count">${n ? `${n} ${n === 1 ? 'field' : 'fields'} changed` : 'No field changes'}</span></td>
             </tr>`;
         }).join('');
@@ -365,8 +368,8 @@
        details, and asks OpenRouter. If anything fails, the audit log keeps working. */
     const RISK_LABEL = { routine: 'Routine', review: 'Review', unusual: 'Unusual', critical: 'Critical' };
     const RISK_ORDER = { routine: 0, review: 1, unusual: 2, critical: 3 };
-    const ai = { status: 'idle', data: null, risk: new Map(), analyzed: new Set(), scope: '' };
-    const explainCache = new Map();
+    const STATUS_LABEL = { needs_review: 'Needs review', under_investigation: 'Under investigation', resolved: 'Resolved', dismissed: 'Dismissed' };
+    const ai = { status: 'idle', data: null, risk: new Map(), resolution: new Map(), analyzed: new Set(), scope: null, error: '' };
     const SPARK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/></svg>';
     const AI_DOWN = 'AI analysis unavailable.';
 
@@ -378,11 +381,7 @@
             const res = await fetch(AI_URL, {
                 method: 'POST',
                 signal: ctrl.signal,
-                headers: {
-                    'Content-Type': 'application/json',
-                    apikey: SUPABASE_ANON_KEY,
-                    'x-card-token': cardToken()
-                },
+                headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, 'x-card-token': cardToken() },
                 body: JSON.stringify({ mode, ...payload })
             });
             const json = await res.json().catch(() => null);
@@ -396,10 +395,17 @@
             ? `<span class="ai-chip ${level}">${RISK_LABEL[level]}</span>`
             : '<span class="ai-chip none">\u2014</span>';
     }
+    const resolvedLine = (r) => `Resolved by ${r.resolved_by_name || r.resolved_by_code || 'an admin'}`;
     function aiBadge(id) {
-        if (ai.status !== 'done') return aiChip(null);
+        if (!ai.data && ai.status === 'loading') return '<span class="ai-chip none">Analyzing\u2026</span>';
+        if (!ai.data || ai.status === 'error') return aiChip(null);
         const k = String(id);
-        return aiChip(ai.risk.get(k) || (ai.analyzed.has(k) ? 'routine' : null));
+        const level = ai.risk.get(k) || (ai.analyzed.has(k) ? 'routine' : null);
+        const res = level === 'routine' ? ai.resolution.get(k) : null;
+        if (!res) return aiChip(level);
+        const label = res.status === 'dismissed' ? 'Dismissed by' : 'Resolved by';
+        const who = res.resolved_by_name || res.resolved_by_code || 'an admin';
+        return `${aiChip('routine')}<span class="ai-resolved-note" title="${esc(res.ref)} \u00B7 ${esc(fmtDate(res.resolved_at))}">${label} ${esc(who)}</span>`;
     }
 
     function dayRange() {
@@ -419,14 +425,13 @@
         panel.classList.toggle('collapsed', collapsed);
         t.setAttribute('aria-expanded', String(!collapsed));
         t.setAttribute('aria-label', collapsed ? 'Expand AI audit insights' : 'Collapse AI audit insights');
-        inner.toggleAttribute('inert', collapsed);            // hidden content can't be tabbed into
+        inner.toggleAttribute('inert', collapsed);
         inner.setAttribute('aria-hidden', String(collapsed));
         try { localStorage.setItem(AI_COLLAPSE_KEY, collapsed ? '1' : '0'); } catch (e) { }
         if (instant) requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.remove('no-anim')));
     }
     const aiIsCollapsed = () => $('aiPanel').classList.contains('collapsed');
 
-    // one-line status shown in the header while the panel is collapsed
     function updateAiMini() {
         let t = '';
         if (ai.status === 'loading') t = 'Analyzing\u2026';
@@ -438,119 +443,256 @@
         $('aiMini').textContent = t;
     }
 
+    /* ---- which audit entries belong to each count ---- */
+    function idsForRisk(level) {
+        const all = [...ai.analyzed].map(Number);
+        if (level === 'routine') return all.filter((id) => !ai.risk.get(String(id)));
+        return all.filter((id) => ai.risk.get(String(id)) === level);
+    }
+
+    function statChip(level, n, label) {
+        n = Number(n || 0);
+        const on = level !== 'all' && state.riskFilter === level;
+        const off = level !== 'all' && n === 0;
+        const tip = off ? `No ${label.toLowerCase()} entries` : on ? 'Click to show all entries again' : `Show these ${n.toLocaleString()} entries in the table`;
+        return `<button type="button" class="ai-stat ${level} ${on ? 'on' : ''}" data-risk="${level}" ${off ? 'disabled' : ''} aria-pressed="${on}" title="${esc(tip)}"><b>${n.toLocaleString()}</b><span>${label}</span></button>`;
+    }
+
+    /* ---- cards ---- */
+    // swap "account #<long id>" for the account holder's name when we know it
+    function nameAccounts(text, label) {
+        const t = String(text ?? '');
+        if (!label) return t;
+        return t
+            .replace(/\bon account #[\w-]+/g, `on the account of ${label}`)
+            .replace(/\bAccount #[\w-]+/g, label)
+            .replace(/\baccount #[\w-]+/g, label);
+    }
+
+    function incActions(c) {
+        if (!ai.data || !ai.data.can_resolve || c.status === 'resolved' || c.status === 'dismissed') return '';
+        return `<button type="button" class="btn primary small" data-inc="${c.id}" data-status="resolved">Mark resolved</button>`;
+    }
+
+    function incCard(c) {
+        const ids = c.event_ids || [];
+        const closed = c.status === 'resolved' || c.status === 'dismissed';
+        const flag = c.is_new ? '<span class="ai-new">New</span>' : c.has_new_evidence ? '<span class="ai-new">New activity</span>' : '';
+        const done = closed
+            ? `<p class="ai-done">\u2713 ${c.status === 'dismissed' ? 'Dismissed' : 'Resolved'} by <b>${esc(c.resolved_by_name || c.resolved_by_code || 'an admin')}</b>${c.resolved_by_code && c.resolved_by_name ? ` (${esc(c.resolved_by_code)})` : ''} on ${esc(fmtDate(c.resolved_at))}${c.resolution_note ? ` \u2014 \u201C${esc(c.resolution_note)}\u201D` : ''}</p>` : '';
+        const follows = c.follows ? `<p class="ai-why">This follows the earlier incident ${esc(c.follows.ref)}${c.follows.status === 'resolved' ? `, which ${esc(c.follows.resolved_by_name || 'an admin')} resolved` : ''}.</p>` : '';
+        return `<article class="ai-card ${esc(c.severity)} ${closed ? 'closed' : ''}" id="inc-${esc(c.id)}">
+            <div class="ai-card-top">${aiChip(c.severity)}<span class="ai-kind">${esc(c.ref)} \u00B7 ${esc(STATUS_LABEL[c.status] || c.status)}</span>${flag}
+                <span class="ai-conf">Detected ${esc(fmtDate(c.first_detected_at))}</span></div>
+            <p><b>${esc(nameAccounts(c.summary, c.account_label))}</b></p>
+            <p class="ai-why">${esc(nameAccounts(c.reason, c.account_label))}</p>
+            ${closed ? '' : `<p class="ai-rec">${esc(c.steps)}</p>`}
+            ${follows}${done}
+            <div class="ai-card-btns">
+                ${ids.length ? `<button type="button" class="btn ghost small" data-related="${esc(ids.join(','))}">View related logs (${ids.length})</button>` : ''}
+                ${incActions(c)}
+            </div>
+        </article>`;
+    }
+
+    function obsCard(it, i) {
+        const ids = it.related_event_ids || [];
+        return `<article class="ai-card ${esc(it.risk_level)}">
+            <div class="ai-card-top">${aiChip(it.risk_level)}<span class="ai-kind">${i === 0 ? 'Latest observation' : 'Observation'}</span>
+                <span class="ai-conf">Confidence ${Math.round((it.confidence || 0) * 100)}%</span></div>
+            <p><b>${esc(nameAccounts(it.summary, it.account_label))}</b></p><p class="ai-why">${esc(nameAccounts(it.reason, it.account_label))}</p><p class="ai-rec">${esc(it.recommended_action)}</p>
+            ${ids.length ? `<div class="ai-card-btns"><button type="button" class="btn ghost small" data-related="${esc(ids.join(','))}">View related logs (${ids.length})</button></div>` : ''}
+        </article>`;
+    }
+
+    // "That problem I flagged earlier has been resolved by <admin>."
+    // "Dismiss" only hides the item in this browser; the incident and its record stay as they are
+    const HIDE_KEY = 'tm_audit_resolved_hidden';
+    const hiddenRes = (() => { try { return new Set((JSON.parse(localStorage.getItem(HIDE_KEY)) || []).map(String)); } catch (e) { return new Set(); } })();
+    const saveHidden = () => { try { localStorage.setItem(HIDE_KEY, JSON.stringify([...hiddenRes].slice(-500))); } catch (e) { } };
+
+    function resolvedStory(list) {
+        list = list.filter((c) => !hiddenRes.has(String(c.id)));
+        if (!list.length) return '';
+        const line = (c) => `<li><span class="ok-tick">\u2713</span><span>Earlier finding \u201C${esc(nameAccounts(c.summary, c.account_label))}\u201D has been resolved by <b>${esc(c.resolved_by_name || c.resolved_by_code || 'an admin')}</b> on ${esc(fmtDate(c.resolved_at))}${c.resolution_note && c.resolution_note !== 'Marked as resolved' ? ` \u2014 ${esc(c.resolution_note)}` : ''}. Its entries now count as Routine.
+            ${(c.event_ids || []).length ? `<button type="button" class="link-btn" data-chg="${esc(c.id)}">${chgOpen.has(String(c.id)) ? 'Hide changes' : 'Show changes'}</button>` : ''}
+            ${chgOpen.has(String(c.id)) ? `<span class="ai-changes">${chgCache.get(String(c.id)) || '<em>Loading\u2026</em>'}</span>` : ''}</span>
+            <button type="button" class="res-x" data-res-hide="${esc(c.id)}" aria-label="Dismiss this item" title="Dismiss">\u00D7</button></li>`;
+        return `<div class="ai-resolved"><div class="ai-resolved-head"><h4>Resolved since flagged</h4><button type="button" class="link-btn" data-res-clear>Dismiss all</button></div><ul>${list.slice(0, 3).map(line).join('')}</ul>
+            ${list.length > 3 ? `<details class="ai-fold"><summary>Show ${list.length - 3} more</summary><ul>${list.slice(3).map(line).join('')}</ul></details>` : ''}</div>`;
+    }
+
+    // the real edits behind a resolved incident: field, before, after (never the status / note bookkeeping)
+    const chgOpen = new Set(), chgCache = new Map();
+    async function toggleChanges(id) {
+        id = String(id);
+        if (chgOpen.has(id)) { chgOpen.delete(id); renderAiPanel(); return; }
+        chgOpen.add(id); renderAiPanel();
+        if (chgCache.has(id)) return;
+        const c = [...(ai.data.resolved || []), ...(ai.data.dismissed || [])].find((x) => String(x.id) === id);
+        let html = '<em>No recorded field changes.</em>';
+        try {
+            if (c && sb) {
+                const { data, error } = await sb.from('audit_logs').select('id,created_at,admin_name,summary,before_data,after_data')
+                    .in('id', c.event_ids || []).not('action', 'in', HIDDEN_ACTIONS).order('created_at');
+                if (error) throw error;
+                const blocks = (data || []).map((r) => {
+                    const ch = buildDiff(r.before_data, r.after_data).filter((d) => d.changed);
+                    if (!ch.length) return '';
+                    return `<span class="chg-entry"><b>${esc(fmtDate(r.created_at))} ${esc(fmtTime(r.created_at))}</b> \u00B7 ${esc(r.admin_name)}<table class="chg-table"><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>${ch.map((d) => `<tr><td>${esc(humanize(d.key))}</td><td>${formatValue(d.key, d.before)}</td><td>${formatValue(d.key, d.after)}</td></tr>`).join('')}</tbody></table></span>`;
+                }).filter(Boolean);
+                if (blocks.length) html = blocks.join('');
+            }
+        } catch (err) { console.error(err); html = '<em>Could not load the changes.</em>'; }
+        chgCache.set(id, html);
+        if (chgOpen.has(id)) renderAiPanel();
+    }
+
     function renderAiPanel() {
         updateAiMini();
         const body = $('aiBody'), btn = $('aiAnalyze');
         btn.disabled = ai.status === 'loading';
-        btn.textContent = ai.status === 'done' || ai.status === 'error' ? 'Analyze again' : 'Analyze activity';
+        btn.textContent = ai.status === 'loading' ? 'Analyzing\u2026' : 'Analyze again';
 
         if (ai.status === 'idle') {
-            body.innerHTML = '<p class="ai-idle">Press <b>Analyze activity</b> and AI will look over the entries that match your filters (up to the latest 200) and point out anything that may deserve a second look. Nothing is sent until you press it.</p>';
+            body.innerHTML = sb ? '<div class="ai-loading"><span class="ai-spin"></span>Starting the analysis\u2026</div>'
+                : '<p class="ai-idle">AI analysis runs automatically on the live site. It is switched off in sample mode.</p>';
             return;
         }
-        if (ai.status === 'loading') {
+        if (ai.status === 'loading' && !ai.data) {
             body.innerHTML = '<div class="ai-loading"><span class="ai-spin"></span>Reading the audit entries\u2026 this can take a few seconds.</div>';
             return;
         }
         if (ai.status === 'error') {
-            body.innerHTML = `<p class="ai-fail"><b>${AI_DOWN}</b> The audit log below is unaffected and still works normally. You can try again in a moment.</p>`;
+            body.innerHTML = `<p class="ai-fail"><b>${AI_DOWN}</b> The audit log below is unaffected and still works normally. Press <b>Analyze again</b> to retry.</p>`;
             return;
         }
         const d = ai.data, c = d.counts || {};
-        const stat = (n, label) => `<div class="ai-stat"><b>${Number(n || 0).toLocaleString()}</b><span>${label}</span></div>`;
-        const stale = ai.scope !== scopeKey() ? '<p class="ai-meta">Your filters changed since this analysis. Press Analyze again to update it.</p>' : '';
-        const insights = [...(d.insights || [])].sort((a, b) =>
-            (RISK_ORDER[b.risk_level] - RISK_ORDER[a.risk_level]) || (b.confidence - a.confidence));
-
-        const cards = insights.map((it, i) => {
-            const ids = it.related_event_ids || [];
-            const kind = it.kind === 'cluster' ? 'AI activity cluster' : (i === 0 ? 'Latest observation' : 'Observation');
-            return `<article class="ai-card ${esc(it.risk_level)}">
-                <div class="ai-card-top">${aiChip(it.risk_level)}<span class="ai-kind">${kind}</span>
-                    <span class="ai-conf">Confidence ${Math.round((it.confidence || 0) * 100)}%</span></div>
-                <p><b>${esc(it.summary)}</b></p>
-                <p class="ai-why">${esc(it.reason)}</p>
-                <p class="ai-rec">${esc(it.recommended_action)}</p>
-                ${ids.length ? `<button type="button" class="btn ghost small" data-related="${esc(ids.join(','))}">View related logs (${ids.length})</button>` : ''}
-            </article>`;
-        }).join('');
+        const open = [...(d.new_findings || []), ...(d.unresolved || [])].sort((a, b) => (RISK_ORDER[b.severity] - RISK_ORDER[a.severity]));
+        const resolved = d.resolved || [], dismissed = d.dismissed || [];
+        const obs = [...(d.observations || [])].sort((a, b) => (RISK_ORDER[b.risk_level] - RISK_ORDER[a.risk_level]) || (b.confidence - a.confidence));
+        const stale = ai.scope !== scopeKey() ? '<p class="ai-meta">Your filters changed. The analysis will refresh in a moment.</p>' : '';
+        const routineNote = c.closed ? `<small class="ai-stat-sub">${c.closed} resolved</small>` : '';
 
         body.innerHTML = `
-            <div class="ai-stats">
-                ${stat(d.analyzed, 'actions analyzed')}${stat(c.routine, 'Routine')}${stat(c.review, 'Review')}${stat(c.unusual, 'Unusual')}${c.critical ? stat(c.critical, 'Critical') : ''}
+            <div class="ai-stats" role="group" aria-label="Jump to analyzed entries">
+                ${statChip('all', d.analyzed, 'actions analyzed')}${statChip('routine', c.routine, 'Routine')}${statChip('review', c.review, 'Review')}${statChip('unusual', c.unusual, 'Unusual')}${statChip('critical', c.critical, 'Critical')}
             </div>
+            ${routineNote ? `<p class="ai-stat-hint">Routine includes ${c.closed} ${c.closed === 1 ? 'entry' : 'entries'} from incidents that an admin already resolved.</p>` : ''}
             <p class="ai-summary">${esc(d.summary)}</p>
-            ${insights.length ? `<div class="ai-list">${cards}</div>`
-                : '<p class="ai-idle">AI analysis found no activity requiring additional review in the selected period.</p>'}
+            ${resolvedStory([...resolved, ...dismissed].sort((a, b) => String(b.resolved_at).localeCompare(String(a.resolved_at))))}
+            ${open.length ? `<h4 class="ai-sec">Needs review (${open.length})</h4><div class="ai-list">${open.map(incCard).join('')}</div>` : ''}
+            ${obs.length ? `<h4 class="ai-sec">Observations (${obs.length})</h4><div class="ai-list">${obs.map(obsCard).join('')}</div>` : ''}
+            ${!open.length && !obs.length ? '<p class="ai-idle">Nothing needs review in the selected period.</p>' : ''}
             ${stale}
             <p class="ai-meta">${d.cached ? 'Saved analysis reused (nothing new to analyze)' : 'New analysis'} \u00B7 ${esc(d.model || 'AI model')} \u00B7 ${d.truncated ? 'latest 200 entries only' : 'all matching entries'}</p>`;
     }
 
     async function analyze() {
-        if (ai.status === 'loading') return;
-        if (aiIsCollapsed()) setAiCollapsed(false);            // open it so the result is visible
-        ai.status = 'loading'; renderAiPanel();
+        if (ai.status === 'loading' || !sb) return;
+        ai.status = 'loading'; ai.error = ''; renderAiPanel();
+        const scope = scopeKey();
         try {
             const data = await aiCall('analyze', scopePayload());
             ai.data = data;
             ai.risk = new Map(Object.entries(data.event_risk || {}));
+            ai.resolution = new Map(Object.entries(data.event_resolution || {}));
             ai.analyzed = new Set((data.analyzed_ids || []).map(String));
-            ai.scope = scopeKey();
             ai.status = 'done';
         } catch (err) {
             console.error('AI analyze failed:', err);
-            ai.status = 'error';
+            ai.status = 'error'; ai.error = String(err && err.message || '').slice(0, 200);
         }
+        ai.scope = scope;                                  // never retry in a loop; "Analyze again" is always there
         renderAiPanel(); render();
+        if (scopeKey() !== ai.scope) scheduleAnalyze();    // filters changed while we were working
+    }
+
+    // runs by itself: when the page opens and whenever the date / area / action / admin filters change
+    const scheduleAnalyze = debounce(() => { if (sb && scopeKey() !== ai.scope) analyze(); }, 600);
+
+    /* ---- Investigate: from a critical / unusual row to its open incident ---- */
+    function investigable(id) {
+        if (!ai.data || ai.status === 'error') return false;
+        const l = ai.risk.get(String(id));
+        return l === 'critical' || l === 'unusual';
+    }
+    function investigate(id) {
+        const n = Number(id);
+        const list = [...(ai.data.new_findings || []), ...(ai.data.unresolved || [])]
+            .filter((c) => (c.event_ids || []).includes(n))
+            .sort((a, b) => RISK_ORDER[b.severity] - RISK_ORDER[a.severity]);
+        const inc = list[0]; if (!inc) return false;
+        const wasCollapsed = aiIsCollapsed();
+        if (wasCollapsed) setAiCollapsed(false);
+        setTimeout(() => {
+            const el = document.getElementById(`inc-${inc.id}`); if (!el) return;
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+        }, wasCollapsed ? 380 : 0);
+        return true;
+    }
+
+    /* ---- jump from a count to its entries ---- */
+    function scrollToResults() {
+        const bar = $('relatedBar');
+        const target = bar.hidden ? document.querySelector('.card') : bar;
+        target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+    function focusRisk(level) {
+        if (level === 'all' || state.riskFilter === level) { state.ids = null; state.riskFilter = ''; }
+        else {
+            const ids = idsForRisk(level);
+            if (!ids.length) return;
+            state.ids = ids; state.riskFilter = level;
+        }
+        state.page = 1; renderAiPanel();
+        Promise.resolve(load()).then(scrollToResults);
+    }
+
+    /* ---- resolve / dismiss / reopen (humans only; the AI never does this) ---- */
+    let pendingInc = null;
+    function askIncident(id, status) {
+        const c = [...(ai.data.new_findings || []), ...(ai.data.unresolved || [])].find((x) => String(x.id) === String(id));
+        if (!c) return;
+        pendingInc = { id, status: 'resolved' };
+        $('incTitle').textContent = 'Mark as resolved';
+        $('incWhat').textContent = `${c.ref}: ${nameAccounts(c.summary, c.account_label)}`;
+        $('incNote').value = '';
+        $('incErr').hidden = true;
+        $('incDialog').showModal(); $('incNote').focus();
+    }
+    async function saveIncident() {
+        if (!pendingInc) return;
+        const btn = $('incSave'); btn.disabled = true;
+        try {
+            await aiCall('incident_status', { id: pendingInc.id, status: 'resolved', note: $('incNote').value.trim() || 'Marked as resolved' });
+            $('incDialog').close(); toast('Marked as resolved');
+            ai.scope = null; analyze();                    // re-read from the database so counts and badges move to Routine
+        } catch (err) { $('incErr').textContent = err.message || 'Could not update the incident.'; $('incErr').hidden = false; }
+        finally { btn.disabled = false; }
     }
 
     /* ---- related logs (these are the real Supabase rows, never AI-made) ---- */
     function showRelated(ids) {
-        state.ids = ids.map(Number).filter(Number.isFinite); state.page = 1;
-        load();
-        const el = $('relatedBar');
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        state.ids = ids.map(Number).filter(Number.isFinite); state.riskFilter = ''; state.page = 1;
+        renderAiPanel();
+        Promise.resolve(load()).then(scrollToResults);
     }
 
     function renderBar() {
         const el = $('relatedBar');
         if (state.ids) {
             el.hidden = false;
-            el.innerHTML = `<span class="rb-txt">Showing the <b>${state.ids.length}</b> audit entries linked to this AI observation. These are the original records.</span>
+            el.innerHTML = `<span class="rb-txt">${state.riskFilter
+                ? `Showing the <b>${state.ids.length}</b> <b>${RISK_LABEL[state.riskFilter]}</b> ${state.ids.length === 1 ? 'entry' : 'entries'} from the AI analysis.`
+                : `Showing the <b>${state.ids.length}</b> audit ${state.ids.length === 1 ? 'entry' : 'entries'} linked to this finding.`} These are the original records.</span>
                 <button type="button" class="btn ghost small" data-clear="ids">Show all entries</button>`;
         } else if (state.aiNote) {
             el.hidden = false;
             el.innerHTML = `<span class="rb-txt">${SPARK.replace('width="18" height="18"', 'width="16" height="16" style="vertical-align:-3px"')} <b>AI search</b> read \u201C${esc(state.aiQuery)}\u201D as: ${esc(state.aiNote)}. Results come straight from the audit log.</span>
                 <button type="button" class="btn ghost small" data-clear="ai">Clear</button>`;
         } else el.hidden = true;
-    }
-
-    /* ---- AI explain (single entry) ---- */
-    function resetExplain() { const b = $('dtAi'); b.hidden = true; b.innerHTML = ''; $('dtAiBtn').disabled = false; }
-
-    function renderExplain(d) {
-        const sec = (h, t) => `<h4>${h}</h4><p>${esc(t)}</p>`;
-        $('dtAi').innerHTML = `${sec('What happened', d.what_happened)}${sec('Effect', d.effect)}${sec('Security significance', d.security_significance)}${sec('Recommended review', d.recommended_review)}
-            <p class="ai-meta">AI-generated explanation based only on this entry and nearby activity by the same admin. Advisory only \u00B7 ${esc(d.model || 'AI model')}</p>`;
-    }
-
-    async function explainOpenRow() {
-        const row = openRow; if (!row) return;
-        const box = $('dtAi'); box.hidden = false;
-        const key = String(row.id);
-        if (explainCache.has(key)) { renderExplain(explainCache.get(key)); return; }
-        box.innerHTML = '<div class="ai-loading"><span class="ai-spin"></span>Asking AI to explain this entry\u2026</div>';
-        $('dtAiBtn').disabled = true;
-        box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        try {
-            const data = await aiCall('explain', { id: row.id });
-            explainCache.set(key, data);
-            if (openRow === row) renderExplain(data);
-        } catch (err) {
-            console.error('AI explain failed:', err);
-            if (openRow === row) box.innerHTML = `<p class="ai-fail"><b>${AI_DOWN}</b> The audit entry above is unaffected.</p>`;
-        } finally { if (openRow === row) $('dtAiBtn').disabled = false; }
-        if (openRow === row) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
 
     /* ---- AI search: plain English -> a small, validated filter set ---- */
@@ -586,7 +728,7 @@
             const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !Number.isNaN(Date.parse(d));
             const acts = (f.actions || []).filter((a) => ACTIONS[a]);
             const mods = (f.modules || []).filter((m) => MODULES[m]);
-            Object.assign(state, { module: '', action: '', admin: '', from: '', to: '', q: '', actions: [], modules: [], ids: null, page: 1 });
+            Object.assign(state, { module: '', action: '', admin: '', from: '', to: '', q: '', actions: [], modules: [], ids: null, riskFilter: '', page: 1 });
             if (mods.length === 1) state.module = mods[0]; else state.modules = mods;
             if (acts.length === 1) state.action = acts[0]; else state.actions = acts;
             if (isDay(f.date_from)) state.from = f.date_from;
@@ -829,7 +971,7 @@
     let moreTimer = 0;
     const CHEV = '<svg class="chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 
-    function openDetails(row, autoExplain) {
+    function openDetails(row) {
         openRow = row; showUnchanged = false;
         clearTimeout(moreTimer);
         const a = actionInfo(row.action);
@@ -840,12 +982,11 @@
         $('dtCode').textContent = row.admin_code;
         $('dtRfid').textContent = row.admin_rfid || 'Not recorded';
         $('dtWhat').textContent = row.summary;
-        resetExplain();
         renderDiff();
         const dlg = $('detailDialog');
         if (!dlg.open) dlg.showModal();
         $('dtDiffWrap').scrollTop = 0;
-        if (autoExplain) explainOpenRow(); else $('dtDone').focus();
+        $('dtDone').focus();
     }
 
     function renderDiff() {
@@ -1009,8 +1150,8 @@
     function setPage(p) { state.page = p; load(); $('resultsTitle').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
 
     function resetFilters() {
-        Object.assign(state, { module: '', action: '', admin: '', from: '', to: '', q: '', page: 1, actions: [], modules: [], ids: null, aiNote: '', aiQuery: '' });
-        syncControls(); load();
+        Object.assign(state, { module: '', action: '', admin: '', from: '', to: '', q: '', page: 1, actions: [], modules: [], ids: null, riskFilter: '', aiNote: '', aiQuery: '' });
+        syncControls(); renderAiPanel(); load();
     }
 
     function init() {
@@ -1057,10 +1198,11 @@
 
         // table + pager
         $('rows').addEventListener('click', (e) => {
-            const b = e.target.closest('[data-view],[data-explain]'); if (!b) return;
-            const id = b.dataset.view || b.dataset.explain;
+            const b = e.target.closest('[data-view],[data-investigate]'); if (!b) return;
+            if (b.dataset.investigate) { if (!investigate(b.dataset.investigate)) toast('No open incident found for this entry.', true); return; }
+            const id = b.dataset.view;
             const row = state.rows.find((r) => String(r.id) === id);
-            if (row) openDetails(row, !!b.dataset.explain);
+            if (row) openDetails(row);
         });
         $('pager').addEventListener('click', (e) => {
             const b = e.target.closest('button[data-page]'); if (!b || b.disabled) return;
@@ -1079,20 +1221,33 @@
         $('dtDone').addEventListener('click', () => $('detailDialog').close());
         $('detailDialog').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
         $('dtToggle').addEventListener('click', () => setUnchanged(!showUnchanged));
-        $('dtAiBtn').addEventListener('click', explainOpenRow);
 
         // AI panel + related-logs bar
         try { if (localStorage.getItem(AI_COLLAPSE_KEY) === '1') setAiCollapsed(true, true); } catch (e) { }
         $('aiTitle').addEventListener('click', () => setAiCollapsed(!aiIsCollapsed()));
         renderAiPanel();
-        $('aiAnalyze').addEventListener('click', analyze);
+        $('aiAnalyze').addEventListener('click', () => { ai.scope = null; analyze(); });
         $('aiBody').addEventListener('click', (e) => {
+            const stat = e.target.closest('[data-risk]');
+            if (stat && !stat.disabled) { focusRisk(stat.dataset.risk); return; }
+            const hide = e.target.closest('[data-res-hide]');
+            if (hide) { hiddenRes.add(String(hide.dataset.resHide)); saveHidden(); renderAiPanel(); return; }
+            if (e.target.closest('[data-res-clear]')) {
+                [...(ai.data.resolved || []), ...(ai.data.dismissed || [])].forEach((c) => hiddenRes.add(String(c.id)));
+                saveHidden(); renderAiPanel(); return;
+            }
+            const chg = e.target.closest('[data-chg]');
+            if (chg) { toggleChanges(chg.dataset.chg); return; }
+            const act = e.target.closest('[data-inc]');
+            if (act) { askIncident(act.dataset.inc, act.dataset.status); return; }
             const b = e.target.closest('[data-related]'); if (!b) return;
             showRelated(b.dataset.related.split(','));
         });
+        $('incSave').addEventListener('click', saveIncident);
+        $('incCancel').addEventListener('click', () => $('incDialog').close());
         $('relatedBar').addEventListener('click', (e) => {
             const b = e.target.closest('[data-clear]'); if (!b) return;
-            if (b.dataset.clear === 'ids') { state.ids = null; state.page = 1; load(); } else resetFilters();
+            if (b.dataset.clear === 'ids') { state.ids = null; state.riskFilter = ''; state.page = 1; renderAiPanel(); load(); } else resetFilters();
         });
 
         $('exportBtn').addEventListener('click', exportCsv);

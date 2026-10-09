@@ -2918,3 +2918,124 @@ tbody td:first-child,
         transition: none;
     }
 }
+
+/* ===== PART 3: swipeable Refunds / Top-ups panel ===== */
+.carousel .card-head {
+    align-items: center;
+}
+
+.carousel .card-head h2 {
+    transition: opacity .14s var(--ease), transform .14s var(--ease);
+}
+
+.carousel .card-head h2.swap {
+    opacity: 0;
+    transform: translateY(-4px);
+}
+
+.car-nav {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.car-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.car-btn:hover:not(:disabled) {
+    background: var(--accent-soft);
+}
+
+.car-btn:disabled {
+    opacity: .35;
+    cursor: default;
+}
+
+.car-dots {
+    display: inline-flex;
+    gap: 6px;
+    padding: 0 4px;
+}
+
+.car-dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(31, 36, 32, .22);
+    cursor: pointer;
+    transition: width .3s var(--ease), background .3s var(--ease);
+}
+
+.car-dot.on {
+    width: 22px;
+    background: var(--accent);
+}
+
+.car-dot:focus-visible,
+.car-viewport:focus-visible {
+    outline: 3px solid rgba(122, 20, 40, .4);
+    outline-offset: 2px;
+}
+
+.car-viewport {
+    overflow: hidden;
+    touch-action: pan-y;
+    cursor: grab;
+    outline: 0;
+    transition: height .4s var(--ease);
+}
+
+.car-viewport:active {
+    cursor: grabbing;
+}
+
+.car-track {
+    display: flex;
+    align-items: flex-start;
+    transition: transform .45s cubic-bezier(.22, .8, .24, 1);
+    will-change: transform;
+}
+
+.car-track.dragging {
+    user-select: none;
+}
+
+.car-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+    opacity: 1;
+    transition: opacity .35s var(--ease);
+}
+
+.car-slide[inert] {
+    opacity: .25;
+}
+
+.mini.hl {
+    background: var(--accent-soft);
+    border-color: rgba(122, 20, 40, .22);
+}
+
+.mini.hl b {
+    color: var(--accent);
+}
+
+.mini-sub {
+    color: var(--muted);
+    font-size: .82rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .car-track,
+    .car-viewport {
+        transition: none !important;
+    }
+}

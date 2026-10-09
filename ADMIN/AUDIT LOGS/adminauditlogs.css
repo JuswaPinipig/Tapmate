@@ -2175,3 +2175,344 @@ input[type="date"].f-ctl {
 .pager .info {
     white-space: nowrap;
 }
+
+/* =====================================================================
+   v4: collapsed cabinet fix, clickable AI counts, incident cards
+   ===================================================================== */
+
+/* Collapsed sidebar: the cabinet lets tooltips overflow, so the text labels have to be hidden explicitly */
+.app.collapsed .nav-label {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.app.collapsed .nav-btn {
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+}
+
+@media (max-width: 860px) {
+    .app.collapsed .nav-label {
+        opacity: 1;
+        width: auto;
+        pointer-events: auto;
+    }
+
+    .app.collapsed .nav-btn {
+        justify-content: flex-start;
+        gap: 14px;
+        padding: 0 14px;
+    }
+}
+
+/* AI counts are buttons that jump to their entries */
+button.ai-stat {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color .2s, background .2s, transform .15s, box-shadow .2s;
+}
+
+button.ai-stat:hover:not(:disabled) {
+    border-color: rgba(122, 20, 40, .45);
+    background: var(--accent-soft);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(31, 36, 32, .08);
+}
+
+button.ai-stat:focus-visible {
+    outline: 3px solid rgba(122, 20, 40, .4);
+    outline-offset: 2px;
+}
+
+button.ai-stat:disabled {
+    cursor: default;
+    opacity: .5;
+}
+
+button.ai-stat.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+button.ai-stat.on span {
+    color: rgba(255, 255, 255, .85);
+}
+
+button.ai-stat.critical:not(.on):not(:disabled) b {
+    color: var(--accent);
+}
+
+.ai-stat-hint {
+    margin: -2px 0 10px;
+    font-size: .8rem;
+    color: var(--muted);
+}
+
+.related-bar,
+.card {
+    scroll-margin-top: 16px;
+}
+
+/* resolved note under a Routine chip in the table */
+.ai-resolved-note {
+    display: block;
+    margin-top: 4px;
+    font-size: .74rem;
+    color: #14503f;
+}
+
+/* sections inside the panel */
+.ai-sec {
+    margin: 16px 0 8px;
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.ai-resolved {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border: 1px solid rgba(31, 111, 91, .3);
+    border-radius: 12px;
+    background: rgba(31, 111, 91, .07);
+}
+
+.ai-resolved h4 {
+    margin: 0 0 8px;
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #14503f;
+}
+
+.ai-resolved ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+}
+
+.ai-resolved li {
+    display: flex;
+    gap: 8px;
+    font-size: .9rem;
+    line-height: 1.5;
+}
+
+.ok-tick {
+    color: var(--ok);
+    font-weight: 700;
+}
+
+.link-btn {
+    border: 0;
+    background: none;
+    padding: 0;
+    margin-left: 4px;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.ai-fold summary {
+    cursor: pointer;
+    margin-top: 8px;
+    font-size: .85rem;
+    font-weight: 600;
+    color: #14503f;
+}
+
+.ai-fold ul {
+    margin-top: 8px;
+}
+
+.ai-card.closed {
+    opacity: .85;
+    border-style: dashed;
+}
+
+.ai-new {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.ai-done {
+    color: #14503f;
+    font-weight: 600;
+}
+
+.ai-card-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.ai-card-btns .btn {
+    margin-top: 0;
+}
+
+.ai-warn {
+    color: var(--err);
+}
+
+.ai-fail small {
+    color: var(--muted);
+}
+
+/* resolve dialog */
+.inc-dlg {
+    width: min(480px, calc(100vw - 32px));
+}
+
+.inc-what {
+    margin: 0;
+    padding: 0 24px 8px;
+    font-size: .92rem;
+    line-height: 1.5;
+}
+
+.inc-field {
+    display: grid;
+    gap: 6px;
+    padding: 0 24px;
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.inc-field textarea {
+    width: 100%;
+    resize: none;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 400;
+}
+
+.inc-err {
+    margin: 8px 24px 0;
+    color: var(--err);
+    font-size: .85rem;
+}
+
+.inc-err[hidden] {
+    display: none;
+}
+
+/* Investigate button (critical / unusual rows) */
+.btn.small.investigate-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.btn.small.investigate-btn:hover {
+    background: var(--accent-dark);
+}
+
+.ai-card.flash {
+    animation: ai-flash 2s ease;
+}
+
+@keyframes ai-flash {
+
+    0%,
+    60% {
+        box-shadow: 0 0 0 4px rgba(122, 20, 40, .35);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(122, 20, 40, 0);
+    }
+}
+
+/* resolved incident: the real edits (field, before, after) */
+.ai-changes {
+    display: block;
+    margin-top: 8px;
+}
+
+.chg-entry {
+    display: block;
+    margin-bottom: 10px;
+    font-size: .82rem;
+}
+
+.chg-table {
+    width: 100%;
+    margin-top: 4px;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.chg-table th,
+.chg-table td {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+}
+
+.chg-table th {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+}
+
+/* dismiss controls on "Resolved since flagged" */
+.ai-resolved-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.ai-resolved-head h4 {
+    margin: 0;
+}
+
+.ai-resolved li {
+    align-items: flex-start;
+}
+
+.ai-resolved li>span:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+}
+
+.res-x {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.res-x:hover {
+    background: rgba(31, 36, 32, .08);
+    color: var(--ink);
+}
