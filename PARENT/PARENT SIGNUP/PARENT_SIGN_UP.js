@@ -5,6 +5,11 @@
     var $ = function (id) { return document.getElementById(id); };
 
     var link = "";      // QR token or 6-digit code
+    // Remembered for this browser tab only, so a refresh doesn't lose the QR link.
+    var KEY = "tapmate_parent_link";
+    function keep(v) { try { sessionStorage.setItem(KEY, v); } catch (_) { } }
+    function kept() { try { return sessionStorage.getItem(KEY) || ""; } catch (_) { return ""; } }
+    function forget() { try { sessionStorage.removeItem(KEY); } catch (_) { } }
     var step = 1;
 
     var REASONS = {
@@ -33,10 +38,11 @@
         catch (e) { console.error(e); show(fromCodeForm ? "s-code" : "s-fail"); setMsg($("code-msg"), "Something went wrong. Please try again."); return fail("Something went wrong", "We couldn't check your link. Check your connection and try again."); }
         var r = res.data || {};
         if (!r.ok) {
+            forget();
             if (fromCodeForm || !value) { show("s-code"); return setMsg($("code-msg"), REASONS[r.reason] || REASONS.invalid_link); }
             return fail("Can't use this link", REASONS[r.reason] || REASONS.invalid_link);
         }
-        link = value;
+        link = value; keep(value);
         $("linking").textContent = r.student_first_name ? "You're linking to " + r.student_first_name + "'s TapMate wallet." : "";
         goStep(1); show("s-form"); $("first").focus();
     }
@@ -105,14 +111,14 @@
         var r = res.data || {};
         if (!r.ok) {
             // Link problems end the flow; field problems send the parent back to the right step
-            if (["invalid_link", "expired", "used", "already_linked"].indexOf(r.reason) >= 0) return fail("Can't use this link", REASONS[r.reason]);
+            if (["invalid_link", "expired", "used", "already_linked"].indexOf(r.reason) >= 0) { forget(); return fail("Can't use this link", REASONS[r.reason]); }
             if (r.reason === "bad_contact" || r.reason === "bad_name" || r.reason === "exists") goStep(1);
             else if (r.reason === "weak_password") goStep(2);
             else if (r.reason === "bad_pin") goStep(3);
             return setMsg($("msg"), REASONS[r.reason] || "Couldn't create your account.");
         }
         ["pw", "pw2", "pin", "pin2"].forEach(function (id) { $(id).value = ""; });
-        show("s-done");
+        forget(); show("s-done");
     });
 
     /* ---------- code form / retry ---------- */
@@ -130,8 +136,30 @@
 
     $("login-link").href = cfg.LOGIN_URL || "../LOGIN/login.html";
 
+    /* ---------- show / hide password ---------- */
+    document.querySelectorAll("[data-eye]").forEach(function (b) {
+        b.addEventListener("click", function () {
+            var i = $(b.dataset.eye), show = i.type === "password";
+            i.type = show ? "text" : "password";
+            b.textContent = show ? "Hide" : "Show";
+            b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+        });
+    });
+
+    /* ---------- background video: respect reduced motion / data saver, never block the page ---------- */
+    (function () {
+        var v = $("bg-video"); if (!v) return;
+        var calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var saver = navigator.connection && navigator.connection.saveData;
+        if (calm || saver) { v.removeAttribute("autoplay"); v.pause(); v.style.display = "none"; return; }
+        v.muted = true;
+        var p = v.play(); if (p && p.catch) p.catch(function () { v.style.display = "none"; });
+        v.addEventListener("error", function () { v.style.display = "none"; }, true);
+    })();
+
     /* ---------- start: ?link=<token> from the QR ---------- */
     var q = new URLSearchParams(location.search).get("link");
     if (q) { try { history.replaceState(null, "", location.pathname); } catch (_) { } checkLink(q.trim(), false); }
+    else if (kept()) { checkLink(kept(), true); }      // page was refreshed: pick up where the QR left off
     else { show("s-code"); }
 })();

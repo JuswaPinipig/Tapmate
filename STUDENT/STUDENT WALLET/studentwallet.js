@@ -282,7 +282,7 @@
         try { res = await db.rpc("student_create_parent_link", { p_token: getToken() }); if (res.error) throw res.error; }
         catch (err) {
             console.error(err); PL.busy = false; btn.disabled = false; PL.exp = 0;
-            return setErr($("plink-msg"), "Can't make a code right now. Tap “Get a new code now” to try again.");
+            return setErr($("plink-msg"), "Can't make a QR code right now. Tap “Refresh QR code” to try again.");
         }
         PL.busy = false; btn.disabled = false;
         var r = res.data || {};
@@ -290,22 +290,20 @@
         if (r.reason === "linked") { closeModal(plinkEl); toast("Parent linked."); return refresh(); }
         if (!r.ok) {
             console.error("student_create_parent_link:", JSON.stringify(r)); PL.exp = 0;
-            return setErr($("plink-msg"), "Could not make a parent code (" + (r.reason || "unknown") + "). Tap “Get a new code now” to try again.");
+            return setErr($("plink-msg"), "Could not make a QR code (" + (r.reason || "unknown") + "). Tap “Refresh QR code” to try again.");
         }
         setErr($("plink-msg"), "");
-        $("pl-code").textContent = fmtCode(r.code);
         PL.exp = new Date(r.expires_at).getTime();
         var base = cfg.PARENT_LINK_URL;
         // A phone can't follow a relative path, so turn it into a full https://... address first.
         if (base) { try { base = new URL(base, location.href).href; } catch (_) { } }
         drawQr(base ? base + (base.indexOf("?") < 0 ? "?" : "&") + "link=" + encodeURIComponent(r.qr_token) : "tapmate-link:" + r.qr_token);
         $("qr-box").classList.remove("stale");
-        if (manual) toast("New code ready.");
+        if (manual) toast("QR code refreshed.");
     }
     function tickParent() {
         if (plinkEl.hidden || !PL.exp) return;
-        var left = Math.max(0, PL.exp - Date.now()), s = Math.ceil(left / 1000);
-        $("pl-timer").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+        var left = Math.max(0, PL.exp - Date.now());
         if (left <= 0) { $("qr-box").classList.add("stale"); newParentCode(false); return; }
         if (Date.now() - PL.lastPoll > 4000) { PL.lastPoll = Date.now(); refresh(); }   // notice the parent linking
     }
@@ -317,7 +315,7 @@
         if (p.linked && !plinkEl.hidden) { PL.exp = 0; closeModal(plinkEl); toast("Parent linked."); }
     }
     $("pw-btn").onclick = function () {
-        PL.exp = 0; $("pl-code").textContent = fmtCode(""); $("pl-timer").textContent = "–:––"; $("qr-box").innerHTML = ""; setErr($("plink-msg"), "");
+        PL.exp = 0; $("qr-box").innerHTML = ""; setErr($("plink-msg"), "");
         openModal(plinkEl);
         if (!PL.timer) PL.timer = setInterval(tickParent, 1000);
         newParentCode(false);

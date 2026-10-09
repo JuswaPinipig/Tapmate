@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#5E1520">
     <title>TapMate – Parent Sign Up</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
@@ -13,13 +14,25 @@
 </head>
 
 <body>
+    <!-- Background video (muted loop; falls back to the maroon gradient if it can't play) -->
+    <div class="bg" aria-hidden="true">
+        <video id="bg-video" autoplay muted loop playsinline preload="auto" disablepictureinpicture>
+            <source src="assets/school-video.mp4" type="video/mp4">
+        </video>
+        <div class="bg-tint"></div>
+    </div>
+
     <main class="wrap">
         <div class="card">
+            <!-- Logo hangs over the top edge of the panel and floats (same as the login page) -->
+            <h2 class="brand"><img src="assets/tapmate%20logo.png" alt="TapMate"></h2>
+            <p class="eyebrow">Parent portal</p>
             <h1>Parent sign up</h1>
 
             <!-- Checking the link -->
-            <div id="s-load" class="state">
-                <p>Checking your link…</p>
+            <div id="s-load" class="state center">
+                <span class="spinner" aria-hidden="true"></span>
+                <p class="lead">Checking your link…</p>
             </div>
 
             <!-- No / bad link: type the 6-digit code instead -->
@@ -36,37 +49,43 @@
             <form id="s-form" class="state" hidden novalidate>
                 <p class="linking" id="linking"></p>
                 <ol class="steps" id="steps" aria-label="Progress">
-                    <li class="on">Contact</li>
-                    <li>Password</li>
-                    <li>PIN</li>
+                    <li class="on"><i>1</i><span>Contact</span></li>
+                    <li><i>2</i><span>Password</span></li>
+                    <li><i>3</i><span>PIN</span></li>
                 </ol>
 
                 <section data-step="1">
-                    <label>First name <input id="first" autocomplete="given-name" maxlength="60"></label>
-                    <label>Last name <input id="last" autocomplete="family-name" maxlength="60"></label>
+                    <div class="two">
+                        <label>First name <input id="first" autocomplete="given-name" maxlength="60"></label>
+                        <label>Last name <input id="last" autocomplete="family-name" maxlength="60"></label>
+                    </div>
                     <label>Email or mobile number
-                        <input id="contact" autocomplete="username" placeholder="you@email.com or 09XX XXX XXXX">
+                        <input id="contact" type="text" inputmode="email" autocapitalize="none" autocomplete="username"
+                            placeholder="you@email.com or 09XX XXX XXXX">
                     </label>
                 </section>
 
                 <section data-step="2" hidden>
                     <label>Create a password
-                        <input id="pw" type="password" autocomplete="new-password" placeholder="At least 8 characters">
+                        <span class="field"><input id="pw" type="password" autocomplete="new-password"
+                                placeholder="At least 8 characters"><button type="button" class="eye" data-eye="pw"
+                                aria-label="Show password">Show</button></span>
                     </label>
                     <label>Confirm password
-                        <input id="pw2" type="password" autocomplete="new-password">
+                        <span class="field"><input id="pw2" type="password" autocomplete="new-password"><button
+                                type="button" class="eye" data-eye="pw2" aria-label="Show password">Show</button></span>
                     </label>
                     <p class="hint">Use at least 8 characters with a letter and a number.</p>
                 </section>
 
                 <section data-step="3" hidden>
                     <label>Create a 4-digit PIN
-                        <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"
-                            placeholder="••••">
+                        <input id="pin" class="pinbox" type="password" inputmode="numeric" maxlength="4"
+                            autocomplete="off" placeholder="••••">
                     </label>
                     <label>Confirm PIN
-                        <input id="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off"
-                            placeholder="••••">
+                        <input id="pin2" class="pinbox" type="password" inputmode="numeric" maxlength="4"
+                            autocomplete="off" placeholder="••••">
                     </label>
                     <p class="hint">You'll use this PIN to confirm sensitive actions. Don't share it.</p>
                 </section>
@@ -79,7 +98,7 @@
             </form>
 
             <!-- Done -->
-            <div id="s-done" class="state" hidden>
+            <div id="s-done" class="state center" hidden>
                 <div class="ok">✓</div>
                 <h2>Account created</h2>
                 <p class="lead" id="done-text">Your account is ready and linked. You can now log in.</p>
@@ -87,12 +106,14 @@
             </div>
 
             <!-- Dead end -->
-            <div id="s-fail" class="state" hidden>
+            <div id="s-fail" class="state center" hidden>
                 <h2 id="fail-title">Can't continue</h2>
                 <p class="lead" id="fail-text"></p>
                 <button class="btn line" type="button" id="retry">Enter a code instead</button>
             </div>
         </div>
+
+        <footer class="foot">TapMate · Cashless canteen</footer>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

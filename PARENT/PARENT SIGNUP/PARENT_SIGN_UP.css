@@ -1,3 +1,4 @@
+/* TapMate parent sign-up: mobile-first, same colour way as the student wallet */
 :root {
     --paper: #FAF7F2;
     --surface: #FFFFFF;
@@ -5,26 +6,13 @@
     --maroon: #7A1F2B;
     --maroon-deep: #5E1520;
     --on-maroon: #F8EDE9;
-    --gray: #8A8587;
+    --gray: #6F696B;
     --gray-soft: #E7E3E0;
+    --gold: #C9A24B;
     --ok: #2F6B4F;
     --err: #A32636;
+    --card: rgba(255, 255, 255, .82);
     box-sizing: border-box;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-        --paper: #1B1618;
-        --surface: #241D20;
-        --ink: #F1E9E6;
-        --gray: #A39DA0;
-        --gray-soft: #3A3235;
-        --maroon: #8E2634;
-        --maroon-deep: #6A1A25;
-        --err: #E07A86;
-    }
 }
 
 *,
@@ -34,21 +22,26 @@
 }
 
 html {
-    scroll-padding-top: env(safe-area-inset-top, 0px)
+    height: 100%;
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+    -webkit-text-size-adjust: 100%
 }
 
 body {
     margin: 0;
-    background: var(--paper);
+    min-height: 100%;
+    background: var(--maroon-deep);
     color: var(--ink);
-    font: 400 16px/1.5 Figtree, system-ui, sans-serif
+    font: 400 16px/1.5 Figtree, system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent
 }
 
 h1,
 h2 {
     font-family: "Bricolage Grotesque", Figtree, system-ui, sans-serif;
-    margin: 0 0 12px;
-    letter-spacing: -.01em
+    margin: 0 0 14px;
+    letter-spacing: -.01em;
+    line-height: 1.15
 }
 
 h1 {
@@ -57,35 +50,122 @@ h1 {
 }
 
 h2 {
-    font-size: 21px
+    font-size: 22px
 }
 
-.wrap {
-    min-height: 100vh;
-    display: grid;
-    place-items: center;
-    padding: 20px
-}
-
-.card {
-    width: 100%;
-    max-width: 420px;
-    background: var(--surface);
-    border: 1px solid var(--gray-soft);
-    border-radius: 18px;
-    padding: 28px 24px;
-    box-shadow: 0 8px 30px rgba(43, 35, 38, .08)
-}
-
-.state[hidden],
 [hidden] {
     display: none !important
 }
 
-.state {
-    display: block
+/* ---------- background video ---------- */
+.bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    background: linear-gradient(160deg, var(--maroon) 0%, var(--maroon-deep) 100%)
 }
 
+.bg video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+}
+
+.bg-tint {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(94, 21, 32, .78) 0%, rgba(122, 31, 43, .55) 45%, rgba(94, 21, 32, .85) 100%)
+}
+
+/* ---------- layout (phone column, centred on bigger screens) ---------- */
+.wrap {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 22px) 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px
+}
+
+/* Logo floats over the top edge of the panel (same idea as login.html) */
+.brand {
+    position: relative;
+    z-index: 3;
+    margin: -90px 0 0;
+    padding: 0;
+    line-height: 0;
+    font-size: 0
+}
+
+.brand img {
+    display: block;
+    width: 340px;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .35));
+    animation: float 4s ease-in-out infinite
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0)
+    }
+
+    50% {
+        transform: translateY(-6px)
+    }
+}
+
+.eyebrow {
+    margin: 6px 0 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--maroon)
+}
+
+.card {
+    margin-top: 90px;
+    /* room for the floating logo */
+    background: var(--card);
+    -webkit-backdrop-filter: blur(16px) saturate(1.05);
+    backdrop-filter: blur(16px) saturate(1.05);
+    border: 1px solid rgba(255, 255, 255, .45);
+    border-radius: 18px;
+    padding: 0 22px 22px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35)
+}
+
+.card h1 {
+    text-align: center
+}
+
+.foot {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(248, 237, 233, .75)
+}
+
+.center {
+    text-align: center
+}
+
+/* ---------- text ---------- */
 .lead,
 .hint {
     color: var(--gray);
@@ -94,14 +174,15 @@ h2 {
 
 .hint {
     font-size: 14px;
-    margin: 4px 0 0
+    margin: 2px 0 0
 }
 
 .linking {
-    margin: 0 0 14px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: var(--paper);
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--maroon);
+    color: var(--on-maroon);
     font-size: 14px
 }
 
@@ -109,6 +190,7 @@ h2 {
     display: none
 }
 
+/* ---------- form ---------- */
 label {
     display: block;
     font-weight: 600;
@@ -119,44 +201,110 @@ label {
 input {
     display: block;
     width: 100%;
+    min-height: 50px;
     margin-top: 6px;
     padding: 12px 14px;
     font: inherit;
+    font-size: 16px;
+    /* 16px stops iOS Safari zooming on focus */
     color: var(--ink);
-    background: var(--paper);
+    background: var(--surface);
     border: 1.5px solid var(--gray-soft);
-    border-radius: 10px
+    border-radius: 12px;
+    -webkit-appearance: none;
+    appearance: none
+}
+
+input::placeholder {
+    color: var(--gray);
+    opacity: .7
 }
 
 input:focus {
     outline: none;
     border-color: var(--maroon);
-    box-shadow: 0 0 0 3px rgba(122, 31, 43, .15)
+    box-shadow: 0 0 0 3px rgba(201, 162, 75, .45)
+}
+
+.two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px
+}
+
+@media (max-width:360px) {
+    .two {
+        grid-template-columns: 1fr
+    }
 }
 
 #code {
-    font-size: 24px;
-    letter-spacing: .25em;
-    text-align: center
+    font-size: 26px;
+    letter-spacing: .3em;
+    text-align: center;
+    font-weight: 600
 }
 
+.pinbox {
+    font-size: 28px;
+    letter-spacing: .6em;
+    text-align: center;
+    font-weight: 600
+}
+
+.field {
+    position: relative;
+    display: block
+}
+
+.field input {
+    padding-right: 74px
+}
+
+.eye {
+    position: absolute;
+    right: 6px;
+    top: 12px;
+    height: 38px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--maroon);
+    font: 600 14px Figtree, system-ui, sans-serif;
+    cursor: pointer
+}
+
+/* ---------- buttons ---------- */
 .btn {
     display: inline-flex;
     justify-content: center;
     align-items: center;
     width: 100%;
-    padding: 13px 18px;
+    min-height: 52px;
+    padding: 12px 18px;
     font: 600 16px Figtree, system-ui, sans-serif;
     color: var(--on-maroon);
     background: var(--maroon);
     border: 1.5px solid var(--maroon);
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: pointer;
-    text-decoration: none
+    text-decoration: none;
+    transition: background .15s, transform .1s
 }
 
 .btn:hover {
     background: var(--maroon-deep)
+}
+
+.btn:active {
+    transform: scale(.98)
+}
+
+.btn:focus-visible,
+.eye:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
 }
 
 .btn:disabled {
@@ -170,68 +318,158 @@ input:focus {
 }
 
 .btn.line:hover {
-    background: var(--paper)
+    background: rgba(122, 31, 43, .08)
 }
 
 .row {
     display: flex;
     gap: 10px;
-    margin-top: 16px
+    margin-top: 18px
 }
 
 .row .btn {
     flex: 1
 }
 
+.row .btn.line {
+    flex: 0 0 34%
+}
+
 .msg {
-    margin: 8px 0 0;
+    margin: 4px 0 12px;
     padding: 10px 12px;
     border-radius: 10px;
     font-size: 14px;
     color: var(--err);
-    background: rgba(163, 38, 54, .1)
+    background: rgba(163, 38, 54, .12);
+    border: 1px solid rgba(163, 38, 54, .3)
 }
 
+/* ---------- step indicator ---------- */
 .steps {
     list-style: none;
     display: flex;
-    gap: 6px;
-    margin: 0 0 20px;
-    padding: 0
+    justify-content: space-between;
+    margin: 0 0 22px;
+    padding: 0;
+    position: relative
+}
+
+.steps::before {
+    content: "";
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    top: 15px;
+    height: 2px;
+    background: var(--gray-soft)
 }
 
 .steps li {
+    position: relative;
     flex: 1;
-    text-align: center;
-    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--gray);
-    padding-bottom: 8px;
-    border-bottom: 3px solid var(--gray-soft)
+    color: var(--gray)
 }
 
-.steps li.on {
-    color: var(--maroon);
-    border-color: var(--maroon)
-}
-
-.steps li.done {
-    color: var(--ok);
-    border-color: var(--ok)
-}
-
-.ok {
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 14px;
+.steps i {
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
     border-radius: 50%;
-    font-size: 28px;
-    color: #fff;
-    background: var(--ok)
+    font-style: normal;
+    font-size: 14px;
+    background: var(--surface);
+    border: 2px solid var(--gray-soft)
 }
 
-#s-done {
-    text-align: center
+.steps li.on {
+    color: var(--maroon)
+}
+
+.steps li.on i {
+    background: var(--maroon);
+    border-color: var(--gold);
+    color: var(--on-maroon);
+    box-shadow: 0 0 0 3px rgba(201, 162, 75, .35)
+}
+
+.steps li.done {
+    color: var(--ok)
+}
+
+.steps li.done i {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: #fff
+}
+
+.steps li.done i::before {
+    content: "✓"
+}
+
+.steps li.done i {
+    font-size: 0
+}
+
+.steps li.done i::before {
+    font-size: 15px
+}
+
+/* ---------- states ---------- */
+.ok {
+    width: 64px;
+    height: 64px;
+    margin: 4px auto 14px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-size: 32px;
+    color: #fff;
+    background: var(--ok);
+    box-shadow: 0 0 0 6px rgba(47, 107, 79, .2)
+}
+
+.spinner {
+    display: block;
+    width: 34px;
+    height: 34px;
+    margin: 6px auto 12px;
+    border-radius: 50%;
+    border: 3px solid var(--gray-soft);
+    border-top-color: var(--maroon);
+    animation: spin .8s linear infinite
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg)
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .brand img {
+        animation: none
+    }
+
+    .spinner {
+        animation: none
+    }
+
+    .btn {
+        transition: none
+    }
+}
+
+/* short phones: don't centre vertically, let it scroll naturally */
+@media (max-height:700px) {
+    .wrap {
+        justify-content: flex-start
+    }
 }
