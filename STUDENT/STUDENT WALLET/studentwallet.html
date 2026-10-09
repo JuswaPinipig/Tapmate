@@ -213,9 +213,15 @@
                     </svg></button>
             </div>
             <section class="pd-box pk-box">
-                <p class="how">To link your account to your parent, ask them to scan this QR code to access the
+                <p class="how" id="pk-how">To link your account to your parent, ask them to scan this QR code to access
+                    the
                     Parent Sign-Up page and complete the registration process.</p>
                 <div class="qr-box" id="qr-box" aria-label="Parent link QR code"></div>
+                <!-- Shown instead of the QR once the parent reaches the PIN step -->
+                <div class="pk-pin" id="pk-pin" hidden>
+                    <span class="code-lbl">PIN code for your parent</span>
+                    <div class="code" id="pk-pin-code" aria-live="polite">• • • •</div>
+                </div>
                 <p class="pd-msg" id="plink-msg" role="alert" hidden></p>
                 <button class="btn-line" id="plink-new" type="button">Refresh QR code</button>
             </section>

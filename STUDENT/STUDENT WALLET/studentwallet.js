@@ -268,7 +268,7 @@
 
     /* ---------- Parent link (popup: QR + 6-digit fallback, new code every 10 minutes) ---------- */
     var plinkEl = $("plink-modal");
-    var PL = { exp: 0, timer: null, busy: false, lastPoll: 0 };
+    var PL = { exp: 0, timer: null, busy: false, lastPoll: 0, qr: "", pin: false, chk: false };
     function fmtCode(c) { return c ? c.slice(0, 3) + " " + c.slice(3) : "––– –––"; }
     function drawQr(text) {
         var box = $("qr-box"); box.innerHTML = "";
@@ -294,6 +294,7 @@
         }
         setErr($("plink-msg"), "");
         PL.exp = new Date(r.expires_at).getTime();
+        PL.qr = r.qr_token; showQrView();
         var base = cfg.PARENT_LINK_URL;
         // A phone can't follow a relative path, so turn it into a full https://... address first.
         if (base) { try { base = new URL(base, location.href).href; } catch (_) { } }
@@ -301,11 +302,35 @@
         $("qr-box").classList.remove("stale");
         if (manual) toast("QR code refreshed.");
     }
+    /* QR view <-> PIN view (the PIN is created by the server when the parent reaches the PIN step) */
+    function showQrView() {
+        PL.pin = false;
+        $("qr-box").style.display = ""; $("pk-pin").hidden = true; $("plink-new").hidden = false;
+        $("pk-how").textContent = "To link your account to your parent, ask them to scan this QR code to access the Parent Sign-Up page and complete the registration process.";
+    }
+    function showPinView(pin) {
+        PL.pin = true;
+        $("qr-box").style.display = "none"; $("pk-pin").hidden = false; $("plink-new").hidden = true;
+        $("pk-pin-code").textContent = String(pin).split("").join(" ");
+        $("pk-how").textContent = "Your parent is on the last step. Show them this PIN code so they can enter it on the Parent Sign-Up page. Don't share it with anyone else.";
+    }
+    async function checkPinStage() {
+        if (!PL.qr || PL.chk) return; PL.chk = true;
+        try {
+            var res = await db.rpc("student_parent_link_status", { p_token: getToken(), p_qr: PL.qr });
+            var d = res && res.data;
+            if (!res.error && d && d.ok) {
+                if (d.stage === "pin" && d.pin) showPinView(d.pin);
+                else if (d.stage === "qr" && PL.pin) showQrView();
+            }
+        } catch (_) { /* never let this log the student out or break the popup */ }
+        PL.chk = false;
+    }
     function tickParent() {
         if (plinkEl.hidden || !PL.exp) return;
         var left = Math.max(0, PL.exp - Date.now());
-        if (left <= 0) { $("qr-box").classList.add("stale"); newParentCode(false); return; }
-        if (Date.now() - PL.lastPoll > 4000) { PL.lastPoll = Date.now(); refresh(); }   // notice the parent linking
+        if (left <= 0 && !PL.pin) { $("qr-box").classList.add("stale"); newParentCode(false); return; }
+        if (Date.now() - PL.lastPoll > 4000) { PL.lastPoll = Date.now(); checkPinStage(); refresh(); }   // notice the parent linking
     }
     function renderParent() {
         var p = state.parent || { linked: false };
@@ -315,7 +340,7 @@
         if (p.linked && !plinkEl.hidden) { PL.exp = 0; closeModal(plinkEl); toast("Parent linked."); }
     }
     $("pw-btn").onclick = function () {
-        PL.exp = 0; $("qr-box").innerHTML = ""; setErr($("plink-msg"), "");
+        PL.exp = 0; PL.qr = ""; showQrView(); $("qr-box").innerHTML = ""; setErr($("plink-msg"), "");
         openModal(plinkEl);
         if (!PL.timer) PL.timer = setInterval(tickParent, 1000);
         newParentCode(false);

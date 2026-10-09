@@ -22,6 +22,9 @@
         bad_name: "Enter your first and last name.",
         weak_password: "Use at least 8 characters with a letter and a number.",
         bad_pin: "Use 4 digits that aren't all the same.",
+        wrong_pin: "That PIN doesn't match the one in the student's account. Check it and try again.",
+        locked: "Too many wrong PIN attempts. Ask your child to show a new QR code.",
+        pin_not_issued: "Please go back one step and continue again to get your PIN.",
         exists: "An account with that email or number already exists. Please log in instead."
     };
 
@@ -77,21 +80,34 @@
             if (p.length < 8 || !/[A-Za-z]/.test(p) || !/\d/.test(p)) return REASONS.weak_password;
             if (p !== $("pw2").value) return "Passwords don't match.";
         } else {
-            var pin = $("pin").value;
-            if (!/^\d{4}$/.test(pin) || /^(\d)\1{3}$/.test(pin)) return REASONS.bad_pin;
-            if (pin !== $("pin2").value) return "PINs don't match.";
+            if (!/^\d{4}$/.test($("pin").value)) return "Enter the 4-digit PIN shown in the student's account.";
         }
         return "";
     }
 
+    async function requestPin() {
+        var btn = $("next"); btn.disabled = true; btn.textContent = "Please wait…";
+        var res;
+        try { res = await db.rpc("parent_request_pin", { p_link: link }); if (res.error) throw res.error; }
+        catch (ex) { console.error(ex); btn.disabled = false; btn.textContent = "Next"; return setMsg($("msg"), "Something went wrong. Please try again."); }
+        btn.disabled = false;
+        var r = res.data || {};
+        if (!r.ok) {
+            btn.textContent = "Next";
+            if (["invalid_link", "expired", "used", "already_linked"].indexOf(r.reason) >= 0) { forget(); return fail("Can't use this link", REASONS[r.reason]); }
+            return setMsg($("msg"), REASONS[r.reason] || "Couldn't continue. Please try again.");
+        }
+        goStep(3);
+    }
+
     $("back").onclick = function () { goStep(step - 1); };
     $("pin").addEventListener("input", function () { this.value = this.value.replace(/\D/g, ""); });
-    $("pin2").addEventListener("input", function () { this.value = this.value.replace(/\D/g, ""); });
 
     $("s-form").addEventListener("submit", async function (e) {
         e.preventDefault();
         var err = validate(step);
         if (err) return setMsg($("msg"), err);
+        if (step === 2) return requestPin();            // the PIN is issued in the student's account
         if (step < 3) return goStep(step + 1);
 
         var btn = $("next"); btn.disabled = true; btn.textContent = "Creating…";
@@ -111,13 +127,14 @@
         var r = res.data || {};
         if (!r.ok) {
             // Link problems end the flow; field problems send the parent back to the right step
-            if (["invalid_link", "expired", "used", "already_linked"].indexOf(r.reason) >= 0) { forget(); return fail("Can't use this link", REASONS[r.reason]); }
+            if (["invalid_link", "expired", "used", "already_linked", "locked"].indexOf(r.reason) >= 0) { forget(); return fail("Can't use this link", REASONS[r.reason]); }
             if (r.reason === "bad_contact" || r.reason === "bad_name" || r.reason === "exists") goStep(1);
             else if (r.reason === "weak_password") goStep(2);
-            else if (r.reason === "bad_pin") goStep(3);
+            else if (r.reason === "pin_not_issued") goStep(2);
+            else if (r.reason === "wrong_pin" || r.reason === "bad_pin") { goStep(3); $("pin").value = ""; }
             return setMsg($("msg"), REASONS[r.reason] || "Couldn't create your account.");
         }
-        ["pw", "pw2", "pin", "pin2"].forEach(function (id) { $(id).value = ""; });
+        ["pw", "pw2", "pin"].forEach(function (id) { $(id).value = ""; });
         forget(); show("s-done");
     });
 

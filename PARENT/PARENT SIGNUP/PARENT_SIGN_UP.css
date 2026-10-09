@@ -252,6 +252,18 @@ input:focus {
     font-weight: 600
 }
 
+.pinnote {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(201, 162, 75, .16);
+    border: 1.5px solid var(--gold);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--ink)
+}
+
 .field {
     position: relative;
     display: block

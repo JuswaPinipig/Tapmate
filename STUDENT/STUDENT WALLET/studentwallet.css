@@ -1315,3 +1315,23 @@ li .via {
 .pk-box .qr-box {
     margin: 4px 0
 }
+
+/* PIN shown to the student for their parent (replaces the QR on the last sign-up step) */
+.pk-pin {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    padding: 22px 16px;
+    border-radius: 14px;
+    background: var(--paper);
+    border: 1.5px solid var(--gold)
+}
+
+.pk-pin[hidden] {
+    display: none
+}
+
+.pk-pin .code {
+    font-size: 46px;
+    letter-spacing: .12em
+}
