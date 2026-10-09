@@ -31,6 +31,8 @@
     function show(id) {
         ["s-load", "s-code", "s-form", "s-done", "s-fail"].forEach(function (s) { $(s).hidden = s !== id; });
     }
+    // TEMPORARY: show the real database error so we can fix it. Remove once sign-up works.
+    function why(ex) { var m = ex && (ex.message || ex.details || ex.hint); return m ? " (" + String(m).slice(0, 160) + ")" : ""; }
     function setMsg(el, t) { el.textContent = t || ""; el.hidden = !t; }
 
     /* ---------- link check ---------- */
@@ -89,7 +91,7 @@
         var btn = $("next"); btn.disabled = true; btn.textContent = "Please wait…";
         var res;
         try { res = await db.rpc("parent_request_pin", { p_link: link }); if (res.error) throw res.error; }
-        catch (ex) { console.error(ex); btn.disabled = false; btn.textContent = "Next"; return setMsg($("msg"), "Something went wrong. Please try again."); }
+        catch (ex) { console.error(ex); btn.disabled = false; btn.textContent = "Next"; return setMsg($("msg"), "Something went wrong. Please try again." + why(ex)); }
         btn.disabled = false;
         var r = res.data || {};
         if (!r.ok) {
@@ -121,7 +123,7 @@
             if (res.error) throw res.error;
         } catch (ex) {
             console.error(ex); btn.disabled = false; btn.textContent = "Create account";
-            return setMsg($("msg"), "Something went wrong. Please try again.");
+            return setMsg($("msg"), "Something went wrong. Please try again." + why(ex));
         }
         btn.disabled = false; btn.textContent = "Create account";
         var r = res.data || {};
