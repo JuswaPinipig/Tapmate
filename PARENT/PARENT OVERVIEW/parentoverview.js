@@ -22,6 +22,7 @@
         goToLogin();
     }
     $("signout").onclick = signOut;
+    $("mbar-logout").onclick = signOut;
 
     /* ---------- formatting ---------- */
     function peso(n) { return Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -331,21 +332,45 @@
         scVideo.srcObject = null;
     }
     function closeScan() { scStop(); closeModal(scanEl); }
+    // The QR reader normally loads with the page; if it didn't, try again here (own copy first, then a CDN)
+    function loadScript(src) {
+        return new Promise(function (ok, no) {
+            var s = document.createElement("script");
+            s.src = src; s.onload = ok; s.onerror = no;
+            document.head.appendChild(s);
+        });
+    }
+    async function ensureQrReader() {
+        var srcs = ["../PARENT OVERVIEW/jsQR.js", "jsQR.js", "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"];
+        for (var i = 0; i < srcs.length && !window.jsQR; i++) { try { await loadScript(srcs[i]); } catch (_) { } }
+        return !!window.jsQR;
+    }
     async function openScan() {
         scLink = ""; scBusy = false; scStep("scan"); setErr($("sc-msg"), ""); $("sc-pin").value = "";
         openModal(scanEl);
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.jsQR) {
-            return setErr($("sc-msg"), "Camera scanning isn't available in this browser. Open this page in your phone's browser over a secure (https) connection.");
+        // Ask for the camera first, inside the tap: Safari only allows the prompt from a user gesture
+        var md = navigator.mediaDevices;
+        if (!md || !md.getUserMedia) {
+            return setErr($("sc-msg"), window.isSecureContext === false
+                ? "The camera needs a secure (https) connection. Open this page using its https address."
+                : "This browser can't use the camera (in-app browsers like Facebook or Messenger often can't). Open this page in Safari or Chrome.");
         }
         try {
-            scStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+            scStream = await md.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+            scVideo.setAttribute("playsinline", ""); scVideo.muted = true;
             scVideo.srcObject = scStream;
             await scVideo.play();
-            scTick();
         } catch (err) {
             console.error(err); scStop();
-            setErr($("sc-msg"), "We couldn't open the camera. Allow camera access for this site in your browser settings, then try again.");
+            return setErr($("sc-msg"), err && err.name === "NotAllowedError"
+                ? "Camera access is blocked. Allow the camera for this site in your browser settings, then tap Link to a student again."
+                : "We couldn't open the camera. Close other apps that might be using it, then try again.");
         }
+        if (!window.jsQR && !(await ensureQrReader())) {
+            scStop();
+            return setErr($("sc-msg"), "The QR scanner couldn't load. Check your connection and try again.");
+        }
+        scTick();
     }
     function scTick() {
         if (!scStream) return;

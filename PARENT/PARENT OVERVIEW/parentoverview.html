@@ -53,7 +53,14 @@
             <header class="mbar"><button class="icon-btn dark" id="menu" aria-label="Open menu"><svg
                         viewBox="0 0 24 24">
                         <path d="M4 7h16M4 12h16M4 17h16" />
-                    </svg></button><b>Parent Overview</b></header>
+                    </svg></button><b>Parent Overview</b>
+                <!-- Always visible on phones, so logging out never depends on the side menu -->
+                <button class="icon-btn dark mbar-out" id="mbar-logout" aria-label="Log out" title="Log Out"><svg
+                        viewBox="0 0 24 24">
+                        <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+                        <path d="M15 8l4 4-4 4M19 12H9" />
+                    </svg></button>
+            </header>
             <main>
                 <p class="err" id="app-err" role="alert" hidden></p>
 
@@ -304,7 +311,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../../STUDENT/STUDENT WALLET/config.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+    <!-- QR reader, served from this site (no CDN needed). Keep jsQR.js next to this page. -->
+    <script src="../PARENT OVERVIEW/jsQR.js"></script>
     <script src="../PARENT OVERVIEW/parentoverview.js"></script>
 </body>
 

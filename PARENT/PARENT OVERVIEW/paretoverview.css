@@ -1856,3 +1856,67 @@ li .via {
 #sc-step-scan[hidden] {
     display: none
 }
+
+/* ============================================================
+   Phone fixes: the Log Out button was hidden below the screen
+   ------------------------------------------------------------
+   iPhone Safari counts 100vh as the screen WITHOUT the address bar and
+   toolbar, so a 100vh menu runs underneath them and its bottom (profile +
+   Log Out) can't be reached. 100dvh is the visible height. The menu also
+   scrolls now, in case a small phone still can't fit everything.
+   ============================================================ */
+.mbar-out {
+    display: none
+}
+
+@media (max-width: 760px) {
+    .side {
+        height: 100vh;
+        height: 100dvh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px))
+    }
+
+    .side-head,
+    .nav,
+    .side-foot {
+        flex: none
+    }
+
+    .side-foot {
+        padding-top: 14px
+    }
+
+    /* Header stays on screen while scrolling and carries its own Log Out button */
+    .mbar {
+        position: sticky;
+        top: 0;
+        z-index: 15
+    }
+
+    .mbar b {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap
+    }
+
+    .mbar-out {
+        display: grid
+    }
+
+    /* Dialogs: same visible-height rule, so their buttons aren't cut off either */
+    .pf-dialog {
+        max-height: calc(100vh - 32px);
+        max-height: calc(100dvh - 32px)
+    }
+
+    main {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px))
+    }
+}
