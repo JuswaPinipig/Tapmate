@@ -182,7 +182,17 @@ async function loadTable(term, page = 1) {
 // ============================================================
 // 6. TABLE
 // ============================================================
-const TITLES = { all: "All students", eligible: "Eligible for pay later", unlinked: "Not linked to a parent" };
+const TITLES = { all: "All students", eligible: "Linked to a parent", active: "Using Pay Later", unpaid: "Students with an unpaid balance", unlinked: "Not linked to a parent" };
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "\u2013";
+function paymentCell(s) {
+    if (!s.parent_linked) return "\u2013";
+    const owed = Number(s.outstanding || 0);
+    if (owed > 0) {
+        return '<div class="parent-cell"><span class="badge ' + (s.overdue ? "warn" : "none") + '">' + (s.overdue ? "Overdue" : "Unpaid") + "</span>" +
+            (s.due_at ? "<small>Due " + escapeHtml(fmtDate(s.due_at)) + "</small>" : "") + "</div>";
+    }
+    return Number(s.used_count || 0) > 0 ? '<span class="badge ok">Settled</span>' : "\u2013";
+}
 
 function renderTable(list, total, term) {
     currentRows = list;
@@ -208,15 +218,17 @@ function renderTable(list, total, term) {
             : '<div class="parent-cell"><span class="badge none">Not linked</span></div>';
 
         const payCell = s.parent_linked
-            ? (s.pay_later_enabled ? '<span class="badge ok">Enabled</span>' : '<span class="badge none">Disabled</span>')
+            ? (s.pay_later_enabled ? '<span class="badge ok">Active</span>' : '<span class="badge none">Off</span>')
             : '<span class="badge warn">Not eligible</span><p class="not-eligible">' + escapeHtml(NOT_LINKED_MSG) + "</p>";
 
-        const outstanding = s.parent_linked ? peso.format(Number(s.outstanding || 0)) : "\u2013";
+        const lim = Number(s.pay_later_limit || 0);
+        const outstanding = s.parent_linked
+            ? "<b>" + peso.format(Number(s.outstanding || 0)) + "</b>" + (s.pay_later_enabled && lim > 0 ? '<span class="sub-t">of ' + peso.format(lim) + " limit</span>" : "")
+            : "\u2013";
 
         let actions = '<button class="btn ghost small" data-act="view" type="button">View ledger</button>';
-        if (s.parent_linked) {
-            actions += '<button class="btn ghost small" data-act="toggle" type="button">' +
-                (s.pay_later_enabled ? "Disable" : "Enable") + "</button>";
+        if (s.parent_linked && s.pay_later_enabled) {   // only the parent can switch it on
+            actions += '<button class="btn ghost small" data-act="toggle" type="button">Disable</button>';
         }
 
         tr.innerHTML =
@@ -225,6 +237,7 @@ function renderTable(list, total, term) {
             "<td>" + parentCell + "</td>" +
             "<td>" + payCell + "</td>" +
             '<td class="num">' + outstanding + "</td>" +
+            "<td>" + paymentCell(s) + "</td>" +
             '<td class="right"><span class="row-actions">' + actions + "</span></td>";
         rowsEl.appendChild(tr);
     });
@@ -337,23 +350,41 @@ async function openLedger(s) {
     $("ldAvatar").textContent = initials(s.full_name);
     $("ldName").textContent = displayName(s);
     const badge = $("ldBadge");
-    badge.textContent = s.parent_linked ? (s.pay_later_enabled ? "Pay later enabled" : "Pay later disabled") : "Not eligible";
+    badge.textContent = s.parent_linked ? (s.pay_later_enabled ? "Pay later active" : "Pay later off") : "Not eligible";
     badge.className = "badge " + (s.parent_linked ? (s.pay_later_enabled ? "ok" : "none") : "warn");
-    $("ldMeta").textContent = ["ID: " + (s.student_id || "-"), s.parent_linked ? "Parent: " + (s.parent_name || "linked") : "No parent linked"].join("  \u2022  ");
-    $("ldOutstanding").textContent = s.parent_linked ? peso.format(Number(s.outstanding || 0)) : "\u2013";
+    $("ldMeta").textContent = ["ID: " + (s.student_id || "-"), s.parent_linked ? "Parent: " + (s.parent_name || "linked") + (s.parent_contact ? " (" + s.parent_contact + ")" : "") : "No parent linked"].join("  \u2022  ");
+    const owed = Number(s.outstanding || 0), lim = Number(s.pay_later_limit || 0);
+    $("ldOutstanding").textContent = s.parent_linked ? peso.format(owed) : "\u2013";
 
-    const notice = $("ldNotice"), body = $("ldBody");
+    const notice = $("ldNotice"), body = $("ldBody"), usage = $("ldUsage");
     ldRows.innerHTML = "";
     $("ldEmpty").hidden = true;
 
     if (!s.parent_linked) {
         notice.textContent = NOT_LINKED_MSG;
-        notice.hidden = false;
-        body.hidden = true;
+        notice.hidden = false; body.hidden = true; usage.hidden = true;
         ledgerDialog.showModal();
         return;
     }
-    notice.hidden = true;
+
+    // current usage
+    usage.hidden = false;
+    const pct = lim > 0 ? Math.min(100, owed / lim * 100) : 0;
+    $("ldFill").style.width = pct + "%";
+    $("ldBar").className = "ld-bar" + (pct >= 100 ? " full" : pct >= 80 ? " warn" : "");
+    $("ldBar").setAttribute("aria-valuenow", Math.round(pct));
+    $("ldBarText").textContent = !s.pay_later_enabled && !owed ? "Pay Later is off for this student."
+        : lim > 0 ? peso.format(owed) + " used of " + peso.format(lim) + " limit"
+            : peso.format(owed) + " used (no limit set yet)";
+    $("ldLimit").textContent = lim > 0 ? peso.format(lim) : "Not set";
+    $("ldAvail").textContent = s.pay_later_enabled ? peso.format(Math.max(lim - owed, 0)) : "\u2013";
+    $("ldUses").textContent = Number(s.used_count || 0) + " of " + Number(s.max_uses || 0);
+    $("ldDue").textContent = owed > 0 ? fmtDate(s.due_at) : "Nothing due";
+
+    if (s.overdue) {
+        notice.textContent = "Payment is overdue. " + peso.format(owed) + " was due " + fmtDate(s.due_at) + ". This student can't use Pay Later until it is settled.";
+        notice.hidden = false;
+    } else notice.hidden = true;
     body.hidden = false;
     ledgerDialog.showModal();
 
@@ -366,12 +397,20 @@ async function openLedger(s) {
         $("ldEmpty").hidden = list.length > 0;
         list.forEach((r) => {
             const charge = r.kind === "charge";
+            let status = "\u2013";
+            if (charge) {
+                const paid = Number(r.paid_amount || 0), amt = Number(r.amount);
+                status = r.status === "paid" ? '<span class="badge ok">Paid</span>'
+                    : r.status === "partial" ? '<span class="badge warn">Partly paid</span><span class="paid-note">' + peso.format(paid) + " of " + peso.format(amt) + "</span>"
+                        : '<span class="badge none">Unpaid</span>';
+            }
             const tr = document.createElement("tr");
             tr.innerHTML =
-                '<td class="muted">' + escapeHtml(new Date(r.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })) + "</td>" +
-                "<td>" + (charge ? "Charge" : "Payment") + "</td>" +
+                '<td class="muted">' + escapeHtml(fmtDate(r.created_at)) + "</td>" +
+                "<td>" + (charge ? "Purchase (Pay Later)" : "Payment") + "</td>" +
                 '<td class="muted">' + escapeHtml(r.note || "") + "</td>" +
-                '<td class="right num ' + (charge ? "amt-charge" : "amt-payment") + '">' + (charge ? "" : "\u2212") + peso.format(Number(r.amount)) + "</td>";
+                '<td class="right num ' + (charge ? "amt-charge" : "amt-payment") + '">' + (charge ? "" : "\u2212") + peso.format(Number(r.amount)) + "</td>" +
+                "<td>" + status + "</td>";
             ldRows.appendChild(tr);
         });
     } catch (err) {

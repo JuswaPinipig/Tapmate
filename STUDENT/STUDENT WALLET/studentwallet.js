@@ -208,8 +208,8 @@
     /* ---------- Pay Later (all numbers come from the database) ---------- */
     function plInfo(max) {
         return [
-            "Pay Later is for students who need emergency funds: when you weren't able to load your balance, are facing a financial difficulty, or are in an emergency. Please activate it only in these situations.",
-            "Pay Later is limited to " + max + " uses. The funds are added directly to your tuition and must be paid before you can activate this feature again.",
+            "Pay Later is for students who need emergency funds: when you weren't able to load your balance, are facing a financial difficulty, or are in an emergency. Please request it only in these situations.",
+            "Pay Later is limited to " + max + " uses. The funds are added directly to your tuition and must be paid before you can request this feature again.",
             "If Pay Later funds aren't paid on time, you won't be able to access this feature."
         ];
     }
@@ -237,7 +237,10 @@
         setErr($("pl-msg"), pl.overdue ? "Your Pay Later funds (" + money(pl.outstanding) + (pl.due_at ? ", due " + when(pl.due_at) : "") + ") weren't paid on time, so you can't access this feature. Settle the amount to regain access."
             : pl.used_count >= pl.max_uses ? "You've used all " + pl.max_uses + " Pay Later activations."
                 : Number(pl.outstanding) > 0 ? "Pay your outstanding " + money(pl.outstanding) + " before activating Pay Later again." : "");
-        $("pl-activate").disabled = !pl.can_activate;
+        var actPending = !!pl.activation_pending;
+        $("pl-activate").disabled = !pl.can_activate || actPending;
+        $("pl-activate").textContent = actPending ? "Request pending" : "Request Pay Later activation";
+        if (actPending) setErr($("pl-msg"), "Your request was sent. Your parent can now activate Pay Later from their account.");
     }
     async function plCall(fn, btn, okMsg, errMap) {
         btn.disabled = true;
@@ -251,11 +254,11 @@
     }
     $("pl-activate").onclick = async function () {
         if (!(state.parent && state.parent.linked)) return toast("Link a parent first to unlock Pay Later.");
-        var ok = await ask("Activate Pay Later?", plInfo(state.pl.max_uses).join("\n\n"), "Activate");
+        var ok = await ask("Request Pay Later activation?", plInfo(state.pl.max_uses).join("\n\n") + "\n\nOnly your parent can activate Pay Later. We'll let them know you're asking.", "Send request");
         if (!ok) return;
-        plCall("student_activate_pay_later", this, "Pay Later activated.", {
+        plCall("student_request_pay_later_activation", this, "Request sent to your parent.", {
             already: "Pay Later is already active.", no_parent: "Link a parent first to unlock Pay Later.", overdue: "Pay Later is unavailable until your payment is settled.",
-            outstanding: "Pay your outstanding amount first.", max_uses: "You've used all your Pay Later activations."
+            outstanding: "Pay your outstanding amount first.", max_uses: "You've used all your Pay Later activations.", pending: "You already have a pending request."
         });
     };
     $("pl-request").onclick = async function () {
@@ -306,7 +309,7 @@
     function showQrView() {
         PL.pin = false;
         $("qr-box").style.display = ""; $("pk-pin").hidden = true; $("plink-new").hidden = false;
-        $("pk-how").textContent = "To link your account to your parent, ask them to scan this QR code to access the Parent Sign-Up page and complete the registration process.";
+        $("pk-how").textContent = "Ask your parent to scan this QR code. New parents will sign up and be linked to you automatically. Parents who already have a TapMate account can log in and link to you.";
     }
     function showPinView(pin) {
         PL.pin = true;

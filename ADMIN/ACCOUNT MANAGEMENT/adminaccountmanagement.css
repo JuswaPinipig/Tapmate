@@ -2025,3 +2025,201 @@ tr.archived td {
     width: 100%;
     margin-top: 12px;
 }
+
+/* ===== Parent accounts ===== */
+th[hidden] {
+    display: none
+}
+
+.linked-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    line-height: 1.35
+}
+
+.linked-cell small {
+    color: var(--muted);
+    font-size: .8rem
+}
+
+#parentDialog {
+    padding-bottom: 24px
+}
+
+#parentDialog .dlg-head {
+    padding-bottom: 10px
+}
+
+#parentDialog .summary {
+    margin-top: 4px
+}
+
+.pa-box {
+    margin: 14px 24px 0;
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff
+}
+
+.pa-h {
+    margin: 0 0 14px;
+    font-size: .98rem;
+    font-weight: 700
+}
+
+/* undo the dialog-wide form/field padding so the content lines up inside the box */
+.pa-box form {
+    padding: 0
+}
+
+.pa-box .field {
+    padding: 0
+}
+
+.pa-box .hint {
+    display: block;
+    margin: 14px 0 0;
+    line-height: 1.45
+}
+
+.pa-email-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px
+}
+
+.pa-email-row .field {
+    flex: 1;
+    min-width: 0
+}
+
+.pa-email-row .btn {
+    flex: none;
+    height: 44px;
+    padding: 0 20px
+}
+
+.pa-email-row .btn:disabled {
+    opacity: .45;
+    cursor: not-allowed
+}
+
+.pa-msg {
+    margin: 10px 0 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: .85rem;
+    line-height: 1.4;
+    background: rgba(179, 65, 46, .1);
+    border: 1px solid rgba(179, 65, 46, .3);
+    color: #7d2616
+}
+
+.pa-msg[hidden] {
+    display: none
+}
+
+.pa-pending {
+    margin: 0 0 12px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: .85rem;
+    line-height: 1.4;
+    background: rgba(201, 138, 27, .12);
+    border: 1px solid rgba(201, 138, 27, .35)
+}
+
+.pa-pending[hidden] {
+    display: none
+}
+
+.pa-student {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap
+}
+
+.pa-student .btn {
+    margin: 0 0 0 auto
+}
+
+.pa-st-t {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1
+}
+
+.pa-st-t small {
+    color: var(--muted)
+}
+
+.pa-results {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px
+}
+
+.pa-results button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer
+}
+
+.pa-results button:hover:not(:disabled) {
+    border-color: var(--muted)
+}
+
+.pa-results button:disabled {
+    opacity: .55;
+    cursor: not-allowed
+}
+
+.pa-results .pa-r-t {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1
+}
+
+.pa-results small {
+    color: var(--muted)
+}
+
+.pa-results .pa-none {
+    padding: 8px 2px;
+    color: var(--muted);
+    font-size: .9rem
+}
+
+/* footer: breathing room so the Close button never touches the edge */
+#parentDialog .dlg-foot {
+    padding: 20px 24px 0
+}
+
+@media (max-width: 520px) {
+    .pa-email-row {
+        flex-direction: column;
+        align-items: stretch
+    }
+
+    .pa-student .btn {
+        width: 100%;
+        margin: 4px 0 0
+    }
+}

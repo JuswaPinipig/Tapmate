@@ -434,7 +434,8 @@ const ROLES = {
     student: { singular: "student", plural: "students", idLabel: "Student ID number", search: "Search by student ID number or full name" },
     faculty: { singular: "faculty account", plural: "faculty accounts", idLabel: "Email", search: "Search by full name or email" },
     admin: { singular: "admin account", plural: "admin accounts", idLabel: "Email", search: "Search by full name or email" },
-    cashier: { singular: "cashier account", plural: "cashier accounts", idLabel: "Email", search: "Search by full name or email" }
+    cashier: { singular: "cashier account", plural: "cashier accounts", idLabel: "Email", search: "Search by full name or email" },
+    parent: { singular: "parent account", plural: "parent accounts", idLabel: "Email / Phone", search: "Search by parent name, email, phone, or their student's name or ID" }
 };
 let roleFilter = ""; // "" = no filter: show every account
 let archivedView = false;
@@ -446,6 +447,15 @@ function displayName(s) {
 }
 
 async function searchAccounts(term, { limit = PAGE_SIZE, page = 1 } = {}) {
+    if (roleFilter === "parent") {   // parents come from their own function (it also returns the linked student)
+        const { data, error } = await db.rpc("admin_parent_list", {
+            p_token: cardToken(), p_search: cleanTerm(term), p_archived: archivedView,
+            p_limit: limit, p_offset: (page - 1) * limit
+        });
+        if (error) throw error;
+        const rows = data || [];
+        return { rows, count: rows.length ? Number(rows[0].total_count) : 0 };
+    }
     let q = db.from(TABLE).select(COLUMNS, { count: "exact" });
     if (roleFilter) q = q.eq("role", roleFilter);
     q = archivedView ? q.eq("status", "archived") : q.neq("status", "archived");
@@ -495,9 +505,9 @@ function renderSuggestions(list, term, note) {
             '<span class="sg-avatar">' + escapeHtml(initials(s.full_name)) + "</span>" +
             '<span class="sg-body">' +
             '<span class="sg-name">' + highlight(displayName(s), term) + "</span>" +
-            '<span class="sg-id">' + highlight(s.student_id || s.email || "", term) + "</span>" +
+            '<span class="sg-id">' + highlight(s.role === "parent" ? (s.email || s.phone || "") : (s.student_id || s.email || ""), term) + "</span>" +
             "</span>" +
-            '<span class="sg-state">' + (s.rfid_uid ? "RFID linked" : "No RFID") + "</span>";
+            '<span class="sg-state">' + (s.role === "parent" ? (s.student_name ? "Linked" : "Not linked") : (s.rfid_uid ? "RFID linked" : "No RFID")) + "</span>";
         suggestionsEl.appendChild(li);
     });
     openSuggestions(list.length > 0);
@@ -635,6 +645,8 @@ const ARCHIVE_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none
 function renderTable(list, title, term = "", total = list.length) {
     const info = ROLES[roleFilter || "all"];
     currentRows = list;
+    const parentView = roleFilter === "parent";
+    document.querySelectorAll("th[data-v]").forEach((th) => { th.hidden = (th.dataset.v === "parent") !== parentView; });
     thId.textContent = info.idLabel;
     resultsTitle.textContent = title || "Accounts";
     resultsCount.textContent = total + " " + (total === 1 ? info.singular : info.plural);
@@ -643,11 +655,13 @@ function renderTable(list, title, term = "", total = list.length) {
 
     if (!list.length) {
         emptyEl.hidden = false;
-        emptyEl.textContent = archivedView
-            ? "No archived " + info.plural + (term ? " match your search." : " yet.")
-            : term
-                ? "No " + info.plural + " found. Try another name or " + (!roleFilter ? "student ID or email" : roleFilter === "student" ? "ID number" : "email") + ", or create a new account."
-                : "No " + info.plural + " yet. Click \"New account\" to add the first one.";
+        emptyEl.textContent = parentView && !archivedView && !term
+            ? "No parent accounts yet. Parents appear here after they sign up from their child's QR code."
+            : archivedView
+                ? "No archived " + info.plural + (term ? " match your search." : " yet.")
+                : term
+                    ? "No " + info.plural + " found. Try another name or " + (!roleFilter ? "student ID or email" : roleFilter === "student" ? "ID number" : "email") + ", or create a new account."
+                    : "No " + info.plural + " yet. Click \"New account\" to add the first one.";
         return;
     }
     emptyEl.hidden = true;
@@ -658,7 +672,25 @@ function renderTable(list, title, term = "", total = list.length) {
         const tr = document.createElement("tr");
         tr.dataset.id = s.id;
         if (archived) tr.className = "archived";
-        const rfidCell = archived
+        if (parentView) {
+            const linkCell = s.student_name
+                ? '<div class="linked-cell"><span class="badge ok">Linked</span><small>' + escapeHtml(s.student_name) + (s.student_id ? " \u2022 " + escapeHtml(s.student_id) : "") + "</small></div>"
+                : s.pending_student_name
+                    ? '<div class="linked-cell"><span class="badge warn">Awaiting confirmation</span><small>' + escapeHtml(s.pending_student_name) + "</small></div>"
+                    : '<span class="badge none">Not linked</span>';
+            tr.innerHTML =
+                '<td class="mono">' + highlight(s.email || s.phone || "-", t) + "</td>" +
+                "<td>" + highlight(displayName(s), t) + "</td>" +
+                "<td>" + linkCell + "</td>" +
+                '<td><span class="badge ' + (archived ? "none" : "ok") + '">' + (archived ? "Archived" : "Active") + "</span></td>" +
+                '<td class="right"><span class="row-actions">' +
+                (archived ? "" : '<button class="btn ghost small" data-act="edit" type="button">Edit</button>') +
+                "</span></td>";
+            rowsEl.appendChild(tr);
+            return;
+        }
+        const isParentRow = s.role === "parent";   // parent rows in the "all accounts" view
+        const rfidCell = isParentRow ? "\u2013" : archived
             ? '<span class="badge none">Archived</span>'
             : (s.rfid_uid ? '<span class="badge ok">Linked</span>' : '<span class="badge none">Not linked</span>') +
             (s.rfid_frozen ? ' <span class="badge warn">Frozen</span>' : "");
@@ -673,7 +705,7 @@ function renderTable(list, title, term = "", total = list.length) {
             (archived
                 ? '<button class="btn ghost small" data-act="unarchive" type="button">Unarchive</button>'
                 : '<button class="btn ghost small" data-act="edit" type="button">Edit</button>' +
-                '<button class="btn ghost small icon-only" data-act="archive" type="button" title="Archive account" aria-label="Archive account">' + ARCHIVE_ICON + "</button>") +
+                (isParentRow ? "" : '<button class="btn ghost small icon-only" data-act="archive" type="button" title="Archive account" aria-label="Archive account">' + ARCHIVE_ICON + "</button>")) +
             "</span></td>";
         rowsEl.appendChild(tr);
     });
@@ -746,6 +778,7 @@ rowsEl.addEventListener("click", (e) => {
     if (!student) return;
     if (btn.dataset.act === "archive") return archiveAccount(student);
     if (btn.dataset.act === "unarchive") return unarchiveAccount(student);
+    if (student.role === "parent") return openParentDialog(student);
     openDialog(student, 1);
 });
 
@@ -1497,7 +1530,174 @@ form.addEventListener("submit", async (e) => {
 });
 
 // ============================================================
-// 10. START
+// 10. PARENT ACCOUNTS (edit email, link / unlink a student)
+// ============================================================
+const parentDialog = $("parentDialog");
+const paEmail = $("paEmail"), paSearch = $("paSearch"), paResults = $("paResults");
+let parentAcc = null;       // the parent being edited (fresh from admin_get_parent)
+let paSeq = 0;
+
+function paMessage(el, msg) { el.textContent = msg || ""; el.hidden = !msg; }
+
+function paRender(p, resetEmail = true) {
+    $("paAvatar").textContent = initials(p.full_name);
+    $("paName").textContent = p.full_name || "Parent";
+    const st = $("paStatus");
+    st.textContent = cap(p.status || "active");
+    st.className = "badge " + ((p.status || "active") === "active" ? "ok" : "none");
+    $("paMeta").textContent = [p.email, p.phone].filter(Boolean).join("  \u2022  ");
+    if (resetEmail) { paEmail.value = p.email || ""; paMessage($("paEmailMsg"), ""); $("paEmailSave").disabled = true; }
+
+    const linked = !!p.student;
+    $("paLinked").hidden = !linked;
+    $("paNone").hidden = linked || !!p.loading;
+    if (linked) {
+        $("paStAv").textContent = initials(p.student.full_name);
+        $("paStName").textContent = p.student.full_name;
+        $("paStId").textContent = "Student ID " + (p.student.student_id || "-");
+    }
+    const pend = $("paPending");
+    pend.hidden = !(p.pending && !linked);
+    if (!pend.hidden) pend.textContent = "Waiting for the parent to confirm the link to " + p.pending.full_name + ". Linking a student here replaces that request.";
+    paMessage($("paMsg"), "");
+}
+
+async function loadParent(id, resetEmail = true) {
+    try {
+        const { data, error } = await db.rpc("admin_get_parent", { p_token: cardToken(), p_id: id });
+        if (error) throw error;
+        parentAcc = data;
+        paRender(data, resetEmail);
+    } catch (err) {
+        toast(friendlyError(err), true);
+    }
+}
+
+async function openParentDialog(row) {
+    parentAcc = null;
+    paSeq++;
+    paSearch.value = "";
+    paResults.innerHTML = "";
+    paRender({ id: row.id, full_name: displayName(row), email: row.email, phone: row.phone, status: row.status, loading: true });
+    parentDialog.showModal();
+    await loadParent(row.id);
+}
+$("paClose").addEventListener("click", () => parentDialog.close());
+$("paDone").addEventListener("click", () => parentDialog.close());
+
+// ---- email ----
+$("paEmailForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!parentAcc) return;
+    const v = paEmail.value.trim().toLowerCase();
+    const msg = $("paEmailMsg");
+    if (!EMAIL_RE.test(v)) { paEmail.classList.add("invalid"); return paMessage(msg, "Enter a valid email address."); }
+    paEmail.classList.remove("invalid");
+    if (v === (parentAcc.email || "").toLowerCase()) return toast("No changes to save.");
+    const ok = await confirmAction({
+        title: "Change " + parentAcc.full_name + "'s email?",
+        html: "The email on this parent account will change from <strong>" + escapeHtml(parentAcc.email || "(none)") + "</strong> to <strong>" + escapeHtml(v) + "</strong>.<br><br>" + AUDIT_NOTE,
+        yes: "Change email", no: "Go Back", ask: false
+    });
+    if (!ok) return;
+    const btn = $("paEmailSave"); btn.disabled = true;
+    try {
+        const { error } = await db.rpc("admin_update_parent_email", { p_token: cardToken(), p_id: parentAcc.id, p_email: v });
+        if (error) throw error;
+        paMessage(msg, "");
+        toast("Email updated.");
+        await loadParent(parentAcc.id);
+        loadTable(currentTerm, currentPage);
+    } catch (err) {
+        paMessage(msg, friendlyError(err));
+    } finally {
+        btn.disabled = !parentAcc || paEmail.value.trim().toLowerCase() === (parentAcc.email || "").toLowerCase();
+    }
+});
+paEmail.addEventListener("input", () => {
+    paEmail.classList.remove("invalid"); paMessage($("paEmailMsg"), "");
+    // Save stays off until the email actually differs from the saved one
+    $("paEmailSave").disabled = !parentAcc || paEmail.value.trim().toLowerCase() === (parentAcc.email || "").toLowerCase();
+});
+
+// ---- unlink ----
+$("paUnlink").addEventListener("click", async () => {
+    if (!parentAcc || !parentAcc.student) return;
+    const parentName = parentAcc.full_name, stName = parentAcc.student.full_name;
+    const ok = await confirmAction({
+        title: "Unlink " + parentName + " from " + stName + "?",
+        html: "The parent will lose access to this student's wallet, and the student's Pay Later will be turned off.<br><br>" + AUDIT_NOTE,
+        yes: "Unlink", danger: true
+    });
+    if (!ok) return;
+    const btn = $("paUnlink"); btn.disabled = true;
+    try {
+        const { error } = await db.rpc("admin_unlink_parent", { p_token: cardToken(), p_parent_id: parentAcc.id });
+        if (error) throw error;
+        toast(parentName + " was unlinked from " + stName + ".");
+        await loadParent(parentAcc.id, false);
+        loadTable(currentTerm, currentPage);
+    } catch (err) {
+        paMessage($("paMsg"), friendlyError(err));
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+// ---- link: search students, pick one ----
+let paStudents = [];
+const runPaSearch = debounce(async () => {
+    const term = cleanTerm(paSearch.value);
+    const seq = ++paSeq;
+    if (!term) { paStudents = []; paResults.innerHTML = ""; return; }
+    try {
+        const { data, error } = await db.rpc("admin_search_students_for_link", { p_token: cardToken(), p_term: term });
+        if (error) throw error;
+        if (seq !== paSeq) return;
+        paStudents = data || [];
+        paResults.innerHTML = "";
+        if (!paStudents.length) {
+            const li = document.createElement("li"); li.className = "pa-none"; li.textContent = "No students match \"" + term + "\"."; paResults.appendChild(li); return;
+        }
+        paStudents.forEach((s, i) => {
+            const li = document.createElement("li");
+            li.innerHTML = '<button type="button" data-i="' + i + '"' + (s.linked ? " disabled" : "") + ">" +
+                '<span class="sg-avatar">' + escapeHtml(initials(s.full_name)) + "</span>" +
+                '<span class="pa-r-t"><b>' + highlight(displayName(s), term) + "</b><small>" + highlight(s.student_id || "-", term) +
+                (s.linked ? " \u2022 already linked to " + escapeHtml(s.parent_name || "a parent") : "") + "</small></span></button>";
+            paResults.appendChild(li);
+        });
+    } catch (err) {
+        if (seq === paSeq) paMessage($("paMsg"), friendlyError(err));
+    }
+}, 220);
+paSearch.addEventListener("input", runPaSearch);
+
+paResults.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-i]");
+    if (!b || b.disabled || !parentAcc) return;
+    const s = paStudents[Number(b.dataset.i)];
+    if (!s) return;
+    const ok = await confirmAction({
+        title: "Link " + parentAcc.full_name + " to " + displayName(s) + "?",
+        html: "This parent will be able to see the student's wallet and transactions, top up their balance, and activate Pay Later for them.<br><br>" + AUDIT_NOTE,
+        yes: "Link", ask: true
+    });
+    if (!ok) return;
+    try {
+        const { error } = await db.rpc("admin_link_parent", { p_token: cardToken(), p_parent_id: parentAcc.id, p_student_id: s.id });
+        if (error) throw error;
+        toast(parentAcc.full_name + " was linked to " + displayName(s) + ".");
+        paSearch.value = ""; paResults.innerHTML = "";
+        await loadParent(parentAcc.id, false);
+        loadTable(currentTerm, currentPage);
+    } catch (err) {
+        paMessage($("paMsg"), friendlyError(err));
+    }
+});
+
+// ============================================================
+// 11. START
 // ============================================================
 (async function start() {
     if (!configured) {

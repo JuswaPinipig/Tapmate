@@ -132,7 +132,8 @@
                 </button>
                 <div class="titles">
                     <h1>Pay Later Ledger</h1>
-                    <p>See which students are linked to a parent and eligible for pay later.</p>
+                    <p>See which students are linked to a parent, how much Pay Later they've used, and whether it's been
+                        paid.</p>
                 </div>
             </header>
 
@@ -142,8 +143,10 @@
             <div class="pills" id="filterPills" role="tablist" aria-label="Filter students">
                 <span class="pill-slider" id="pillSlider" aria-hidden="true"></span>
                 <button type="button" class="pill on" data-filter="all" role="tab">All students</button>
-                <button type="button" class="pill" data-filter="eligible" role="tab">Eligible</button>
-                <button type="button" class="pill" data-filter="unlinked" role="tab">Not linked to a parent</button>
+                <button type="button" class="pill" data-filter="eligible" role="tab">Linked to a parent</button>
+                <button type="button" class="pill" data-filter="active" role="tab">Using Pay Later</button>
+                <button type="button" class="pill" data-filter="unpaid" role="tab">Unpaid balance</button>
+                <button type="button" class="pill" data-filter="unlinked" role="tab">Not linked</button>
             </div>
 
             <!-- Search -->
@@ -180,6 +183,7 @@
                                 <th>Parent link</th>
                                 <th>Pay later</th>
                                 <th>Outstanding</th>
+                                <th>Payment</th>
                                 <th class="right">Actions</th>
                             </tr>
                         </thead>
@@ -215,9 +219,22 @@
             </div>
         </div>
 
+        <div id="ldUsage" class="ld-usage" hidden>
+            <div class="ld-bar" id="ldBar" role="progressbar" aria-label="Pay Later used" aria-valuemin="0"
+                aria-valuemax="100" aria-valuenow="0"><i id="ldFill"></i></div>
+            <p class="ld-bar-t" id="ldBarText"></p>
+            <div class="ld-tiles">
+                <div class="ld-tile"><small>Limit</small><b id="ldLimit">–</b></div>
+                <div class="ld-tile"><small>Available</small><b id="ldAvail">–</b></div>
+                <div class="ld-tile"><small>Activations used</small><b id="ldUses">–</b></div>
+                <div class="ld-tile"><small>Payment due</small><b id="ldDue">–</b></div>
+            </div>
+        </div>
+
         <p id="ldNotice" class="notice" hidden></p>
 
         <div id="ldBody" class="ld-body" hidden>
+            <h4 class="ld-h">Transactions made using Pay Later</h4>
             <div class="ld-table">
                 <table>
                     <thead>
@@ -226,11 +243,12 @@
                             <th>Type</th>
                             <th>Note</th>
                             <th class="right">Amount</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="ldRows"></tbody>
                 </table>
-                <p id="ldEmpty" class="empty" hidden>No pay later activity yet.</p>
+                <p id="ldEmpty" class="empty" hidden>No Pay Later transactions yet.</p>
             </div>
         </div>
         <div class="dlg-foot">

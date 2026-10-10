@@ -45,6 +45,33 @@
                 <button class="btn" type="submit">Continue</button>
             </form>
 
+            <!-- Valid link: new parent or existing parent? -->
+            <div id="s-choice" class="state" hidden>
+                <p class="linking" id="linking-choice"></p>
+                <p class="lead">Do you already have a TapMate parent account?</p>
+                <button class="btn" type="button" id="choose-new">I'm new, create an account</button>
+                <button class="btn line stack" type="button" id="choose-existing">I already have an account</button>
+            </div>
+
+            <!-- Existing parent: log in to link this student -->
+            <form id="s-existing" class="state" hidden novalidate>
+                <p class="linking" id="linking-existing"></p>
+                <p class="lead">Log in with your parent account to link this student.</p>
+                <label>Email or mobile number
+                    <input id="ex-contact" type="text" inputmode="email" autocapitalize="none" autocomplete="username"
+                        placeholder="you@email.com or 09XX XXX XXXX">
+                </label>
+                <label>Password
+                    <span class="field"><input id="ex-pw" type="password" autocomplete="current-password"><button
+                            type="button" class="eye" data-eye="ex-pw" aria-label="Show password">Show</button></span>
+                </label>
+                <p class="msg" id="ex-msg" role="alert" hidden></p>
+                <div class="row">
+                    <button class="btn line" type="button" id="ex-back">Back</button>
+                    <button class="btn" type="submit" id="ex-next">Link student</button>
+                </div>
+            </form>
+
             <!-- Sign-up steps -->
             <form id="s-form" class="state" hidden novalidate>
                 <p class="linking" id="linking"></p>
@@ -97,7 +124,7 @@
             <!-- Done -->
             <div id="s-done" class="state center" hidden>
                 <div class="ok">✓</div>
-                <h2>Account created</h2>
+                <h2 id="done-title">Account created</h2>
                 <p class="lead" id="done-text">Your account is ready and linked. You can now log in.</p>
                 <a class="btn" id="login-link" href="#">Go to login</a>
             </div>

@@ -333,6 +333,10 @@ input:focus {
     background: rgba(122, 31, 43, .08)
 }
 
+.btn.stack {
+    margin-top: 10px
+}
+
 .row {
     display: flex;
     gap: 10px;

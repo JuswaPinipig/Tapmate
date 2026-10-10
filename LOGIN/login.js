@@ -559,6 +559,13 @@ async function submitPin() {
     }
 }
 
+// Hides the page dots (and switches them off); used while a PIN is typed and while redirecting
+function lockDots(on) {
+    tabsEl.classList.toggle("locked", on);
+    tabRfidEl.disabled = on;
+    tabManualEl.disabled = on;
+}
+
 function loginSuccess(res) {
     parentCred = null;
     const profile = res.profile;
@@ -577,6 +584,7 @@ function loginSuccess(res) {
     pin = "";
     clearTimeout(idleTimer);
     setView("tap");
+    lockDots(true);                       // no swiping or dots while "Redirecting…" (or the success message)
 
     const welcome = "Welcome, " + profile.full_name;
     const target = REDIRECTS[profile.role];
@@ -701,9 +709,7 @@ function setView(mode, name = "") {
     // Swiping and the dots are switched off while the PIN is being entered,
     // and come back when the PIN screen closes (idle timeout, Esc, or a finished login)
     const pinning = mode === "pin";
-    tabsEl.classList.toggle("locked", pinning);
-    tabRfidEl.disabled = pinning;
-    tabManualEl.disabled = pinning;
+    lockDots(pinning || state === "done");   // also stay hidden while redirecting after a login
     if (pinning && drag) {                                  // a swipe that was mid-way: drop it
         drag = null;
         trackEl.classList.remove("dragging");
@@ -766,6 +772,7 @@ function clearStatusNow() {
 
 function reset() {
     state = "waiting";
+    lockDots(view === "pin");
     tapEl.className = "tap waiting";
     statusEl.classList.remove("open"); // panel smoothly shrinks back
 

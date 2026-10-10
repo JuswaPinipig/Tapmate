@@ -158,6 +158,7 @@
                 <button type="button" class="pill" data-role="faculty" role="tab">Faculty accounts</button>
                 <button type="button" class="pill" data-role="admin" role="tab">Admin accounts</button>
                 <button type="button" class="pill" data-role="cashier" role="tab">Cashier accounts</button>
+                <button type="button" class="pill" data-role="parent" role="tab">Parent accounts</button>
             </div>
 
             <!-- Live search with autocomplete suggestions -->
@@ -194,9 +195,11 @@
                             <tr>
                                 <th id="thId">Student ID / Email</th>
                                 <th>Full name</th>
-                                <th>Balance</th>
-                                <th>Daily cap</th>
-                                <th>RFID</th>
+                                <th data-v="acct">Balance</th>
+                                <th data-v="acct">Daily cap</th>
+                                <th data-v="acct">RFID</th>
+                                <th data-v="parent" hidden>Linked student</th>
+                                <th data-v="parent" hidden>Status</th>
                                 <th class="right">Actions</th>
                             </tr>
                         </thead>
@@ -367,6 +370,69 @@
         </form>
     </dialog>
 
+
+    <!-- ================= Parent account dialog (edit email, link / unlink student) ================= -->
+    <dialog id="parentDialog" class="dialog wide" aria-labelledby="paTitle">
+        <div class="dlg-head">
+            <h3 id="paTitle">Edit parent account</h3>
+            <button type="button" class="icon-btn" id="paClose" aria-label="Close">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="summary">
+            <span id="paAvatar" class="sm-avatar" aria-hidden="true"></span>
+            <div class="sm-main">
+                <div class="sm-name"><span id="paName"></span> <span class="badge none">Parent</span> <span
+                        id="paStatus" class="badge ok"></span></div>
+                <div id="paMeta" class="sm-meta"></div>
+            </div>
+        </div>
+
+        <section class="pa-box">
+            <h4 class="pa-h">Email</h4>
+            <form id="paEmailForm" novalidate>
+                <div class="pa-email-row">
+                    <label class="field"><span>Email address</span>
+                        <input id="paEmail" type="email" autocomplete="off" spellcheck="false" maxlength="120"
+                            placeholder="parent@email.com"></label>
+                    <button type="submit" class="btn primary" id="paEmailSave" disabled>Save email</button>
+                </div>
+                <p id="paEmailMsg" class="pa-msg" hidden></p>
+            </form>
+        </section>
+
+        <section class="pa-box">
+            <h4 class="pa-h">Linked student</h4>
+
+            <div id="paLinked" hidden>
+                <div class="pa-student">
+                    <span id="paStAv" class="sm-avatar" aria-hidden="true"></span>
+                    <div class="pa-st-t"><b id="paStName"></b><small id="paStId"></small></div>
+                    <button type="button" class="btn danger" id="paUnlink">Unlink student</button>
+                </div>
+                <p class="hint">Unlinking removes the parent's access to this student's wallet and turns the student's
+                    Pay Later off. It's blocked while the student has an unpaid Pay Later balance.</p>
+            </div>
+
+            <div id="paNone" hidden>
+                <p class="pa-pending" id="paPending" hidden></p>
+                <label class="field"><span>Link to a student</span>
+                    <input id="paSearch" type="search" autocomplete="off" spellcheck="false"
+                        placeholder="Search by student ID number or name"></label>
+                <ul id="paResults" class="pa-results"></ul>
+            </div>
+            <p id="paMsg" class="pa-msg" hidden></p>
+        </section>
+
+        <div class="dlg-foot">
+            <span class="spacer"></span>
+            <button type="button" class="btn ghost" id="paDone">Close</button>
+        </div>
+    </dialog>
 
     <!-- ================= Admin profile dialog ================= -->
     <dialog id="profileDialog" class="dialog pf-dialog" aria-labelledby="pdTitle">

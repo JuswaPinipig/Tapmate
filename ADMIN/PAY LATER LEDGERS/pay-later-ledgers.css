@@ -149,3 +149,85 @@ td.muted {
 #ledgerDialog .ld-table td {
     padding: 12px 16px;
 }
+
+/* ===== Usage + paid/unpaid additions ===== */
+.sub-t {
+    display: block;
+    color: var(--muted);
+    font-size: .8rem;
+    margin-top: 2px
+}
+
+.ld-usage {
+    margin: 16px 24px 0;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 12px
+}
+
+.ld-usage[hidden] {
+    display: none
+}
+
+.ld-bar {
+    height: 10px;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, .08);
+    overflow: hidden
+}
+
+.ld-bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 99px;
+    background: var(--ok);
+    transition: width .3s
+}
+
+.ld-bar.warn i {
+    background: #c98a1b
+}
+
+.ld-bar.full i {
+    background: var(--err)
+}
+
+.ld-bar-t {
+    margin: 8px 0 14px;
+    color: var(--muted);
+    font-size: .9rem
+}
+
+.ld-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px
+}
+
+.ld-tile {
+    display: grid;
+    gap: 2px
+}
+
+.ld-tile small {
+    color: var(--muted);
+    font-size: .8rem
+}
+
+.ld-tile b {
+    font-size: 1.05rem
+}
+
+.ld-h {
+    margin: 0;
+    padding: 14px 16px 6px;
+    font-size: .95rem
+}
+
+.paid-note {
+    color: var(--muted);
+    font-size: .78rem;
+    display: block;
+    margin-top: 3px
+}

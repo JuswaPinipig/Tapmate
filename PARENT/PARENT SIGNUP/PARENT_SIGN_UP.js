@@ -25,11 +25,12 @@
         wrong_pin: "That PIN doesn't match the one in the student's account. Check it and try again.",
         locked: "Too many wrong PIN attempts. Ask your child to show a new QR code.",
         pin_not_issued: "Please go back one step and continue again to get your PIN.",
-        exists: "An account with that email or number already exists. Please log in instead."
+        exists: "An account with that email or number already exists. Choose “I already have an account” to link instead.",
+        bad_login: "Wrong email/number or password. Check them and try again."
     };
 
     function show(id) {
-        ["s-load", "s-code", "s-form", "s-done", "s-fail"].forEach(function (s) { $(s).hidden = s !== id; });
+        ["s-load", "s-code", "s-choice", "s-existing", "s-form", "s-done", "s-fail"].forEach(function (s) { $(s).hidden = s !== id; });
     }
     // TEMPORARY: show the real database error so we can fix it. Remove once sign-up works.
     function why(ex) { var m = ex && (ex.message || ex.details || ex.hint); return m ? " (" + String(m).slice(0, 160) + ")" : ""; }
@@ -48,8 +49,9 @@
             return fail("Can't use this link", REASONS[r.reason] || REASONS.invalid_link);
         }
         link = value; keep(value);
-        $("linking").textContent = r.student_first_name ? "You're linking to " + r.student_first_name + "'s TapMate wallet." : "";
-        goStep(1); show("s-form"); $("first").focus();
+        var who = r.student_first_name ? "You're linking to " + r.student_first_name + "'s TapMate wallet." : "";
+        ["linking", "linking-choice", "linking-existing"].forEach(function (id) { $(id).textContent = who; });
+        goStep(1); show("s-choice");
     }
     function fail(title, text) { $("fail-title").textContent = title; $("fail-text").textContent = text; show("s-fail"); }
 
@@ -58,7 +60,7 @@
         step = n;
         document.querySelectorAll("[data-step]").forEach(function (s) { s.hidden = +s.dataset.step !== n; });
         document.querySelectorAll("#steps li").forEach(function (li, i) { li.classList.toggle("on", i + 1 === n); li.classList.toggle("done", i + 1 < n); });
-        $("back").hidden = n === 1;
+        $("back").hidden = false;
         $("next").textContent = n === 3 ? "Create account" : "Next";
         setMsg($("msg"), "");
     }
@@ -102,7 +104,40 @@
         goStep(3);
     }
 
-    $("back").onclick = function () { goStep(step - 1); };
+    $("back").onclick = function () { if (step === 1) show("s-choice"); else goStep(step - 1); };
+
+    /* ---------- choice: new parent vs existing parent ---------- */
+    $("choose-new").onclick = function () { show("s-form"); $("first").focus(); };
+    $("choose-existing").onclick = function () { setMsg($("ex-msg"), ""); show("s-existing"); $("ex-contact").focus(); };
+    $("ex-back").onclick = function () { setMsg($("ex-msg"), ""); show("s-choice"); };
+
+    /* ---------- existing parent: log in and link ---------- */
+    $("s-existing").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var contact = normContact($("ex-contact").value), pw = $("ex-pw").value;
+        if (!contact) return setMsg($("ex-msg"), REASONS.bad_contact);
+        if (!pw) return setMsg($("ex-msg"), "Enter your password.");
+        var btn = $("ex-next"); btn.disabled = true; btn.textContent = "Linking…";
+        var res;
+        try {
+            res = await db.rpc("parent_link_existing", { p_link: link, p_contact: contact, p_password: pw });
+            if (res.error) throw res.error;
+        } catch (ex) {
+            console.error(ex); btn.disabled = false; btn.textContent = "Link student";
+            return setMsg($("ex-msg"), "Something went wrong. Please try again." + why(ex));
+        }
+        btn.disabled = false; btn.textContent = "Link student";
+        var r = res.data || {};
+        if (!r.ok) {
+            if (["invalid_link", "expired", "used", "already_linked"].indexOf(r.reason) >= 0) { forget(); return fail("Can't use this link", REASONS[r.reason]); }
+            if (r.reason === "bad_login") $("ex-pw").value = "";
+            return setMsg($("ex-msg"), REASONS[r.reason] || "Couldn't link this student. Please try again.");
+        }
+        $("ex-pw").value = "";
+        $("done-title").textContent = "Student linked";
+        $("done-text").textContent = "This student is now linked to your parent account. You can log in to view their wallet.";
+        forget(); show("s-done");
+    });
     $("pin").addEventListener("input", function () { this.value = this.value.replace(/\D/g, ""); });
 
     $("s-form").addEventListener("submit", async function (e) {
@@ -137,6 +172,8 @@
             return setMsg($("msg"), REASONS[r.reason] || "Couldn't create your account.");
         }
         ["pw", "pw2", "pin"].forEach(function (id) { $(id).value = ""; });
+        $("done-title").textContent = "Account created";
+        $("done-text").textContent = "Your account is ready and linked. You can now log in.";
         forget(); show("s-done");
     });
 

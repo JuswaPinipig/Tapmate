@@ -1,0 +1,1858 @@
+/* TapMate parent overview. Same look as the student wallet (studentwallet.css), plus the link-confirmation popup at the bottom. */
+:root {
+    --paper: #FAF7F2;
+    --surface: #FFFFFF;
+    --ink: #2B2326;
+    --maroon: #7A1F2B;
+    --maroon-deep: #5E1520;
+    --on-maroon: #F8EDE9;
+    --gray: #8A8587;
+    --gray-soft: #E7E3E0;
+    --gold: #C9A24B;
+    --ok: #2F6B4F;
+    --warn: #9A6A12;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --paper: #1B1618;
+        --surface: #241D20;
+        --ink: #F1E9E6;
+        --gray: #A39DA0;
+        --gray-soft: #3A3235;
+        --maroon: #8E2634;
+        --maroon-deep: #6A1A25;
+    }
+}
+
+:root[data-theme="dark"] {
+    --paper: #1B1618;
+    --surface: #241D20;
+    --ink: #F1E9E6;
+    --gray: #A39DA0;
+    --gray-soft: #3A3235;
+    --maroon: #8E2634;
+    --maroon-deep: #6A1A25;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit
+}
+
+html {
+    scroll-padding-top: env(safe-area-inset-top, 0px)
+}
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 16px/1.5 Figtree, system-ui, sans-serif
+}
+
+h1,
+h2,
+.num {
+    font-family: "Bricolage Grotesque", Figtree, system-ui, sans-serif;
+    margin: 0
+}
+
+
+main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 20px
+}
+
+
+
+
+main {
+    padding-top: 28px;
+    padding-bottom: 48px
+}
+
+.hello {
+    margin-bottom: 22px
+}
+
+.hello h1 {
+    font-size: 28px;
+    font-weight: 700
+}
+
+.hello p {
+    margin: 2px 0 0;
+    color: var(--gray)
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 20px;
+    align-items: start
+}
+
+@media(max-width:760px) {
+    .grid {
+        grid-template-columns: 1fr
+    }
+}
+
+.wallet {
+    background: var(--maroon);
+    color: var(--on-maroon);
+    border-radius: 20px;
+    padding: 26px;
+    position: relative;
+    overflow: hidden
+}
+
+.wallet::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 26px solid var(--maroon-deep);
+    pointer-events: none
+        /* decorative ring was covering the settings gear and eating clicks */
+}
+
+
+.wallet .num {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 4px 0 20px;
+    position: relative
+}
+
+.wallet .num small {
+    font-size: 24px;
+    font-weight: 500;
+    margin-right: 4px;
+    color: var(--gold)
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    position: relative;
+    flex-wrap: wrap
+}
+
+button {
+    font: 600 15px Figtree, sans-serif;
+    border-radius: 999px;
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1.5px solid transparent
+}
+
+button:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.btn-gold {
+    background: var(--gold);
+    color: #2B2326
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--on-maroon);
+    border-color: rgba(248, 237, 233, .5)
+}
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--gray-soft);
+    border-radius: 16px;
+    padding: 22px
+}
+
+.card h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px
+}
+
+.rfid-row {
+    display: flex;
+    align-items: center;
+    gap: 14px
+}
+
+.dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ok);
+    flex: none;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--ok) 20%, transparent)
+}
+
+.dot.off {
+    background: var(--gray);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--gray) 20%, transparent)
+}
+
+.rfid-row strong {
+    display: block;
+    font-size: 17px
+}
+
+.meta {
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    font-size: 14px
+}
+
+.meta div {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid var(--gray-soft);
+    padding-top: 8px
+}
+
+.meta dt {
+    color: var(--gray)
+}
+
+.meta dd {
+    margin: 0;
+    font-weight: 500
+}
+
+.rfid-card .btn-line {
+    margin-top: 16px;
+    width: 100%;
+    background: transparent;
+    color: var(--maroon);
+    border-color: var(--maroon)
+}
+
+.tx {
+    grid-column: 1/-1
+}
+
+.tx-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline
+}
+
+.tx-head h2 {
+    margin: 0
+}
+
+.filters {
+    display: flex;
+    gap: 6px
+}
+
+.filters button {
+    padding: 5px 14px;
+    font-size: 13px;
+    background: transparent;
+    color: var(--gray);
+    border-color: var(--gray-soft)
+}
+
+.filters button[aria-pressed="true"] {
+    background: var(--maroon);
+    color: var(--on-maroon);
+    border-color: var(--maroon)
+}
+
+ul {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0
+}
+
+li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 16px;
+    padding: 14px 0;
+    border-top: 1px solid var(--gray-soft)
+}
+
+li .what {
+    font-weight: 600
+}
+
+li .when {
+    color: var(--gray);
+    font-size: 13px
+}
+
+li .amt {
+    font: 700 17px "Bricolage Grotesque", sans-serif;
+    text-align: right
+}
+
+li .amt.in {
+    color: var(--ok)
+}
+
+li .via {
+    color: var(--gray);
+    font-size: 13px;
+    text-align: right
+}
+
+.empty {
+    padding: 20px 0;
+    color: var(--gray)
+}
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s
+}
+
+.toast.show {
+    opacity: 1
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .toast {
+        transition: none
+    }
+}
+
+/* Auth, errors, small buttons */
+[hidden] {
+    display: none !important
+}
+
+
+
+.err {
+    color: var(--maroon);
+    font-size: 14px;
+    margin: 12px 0 0
+}
+
+.sub {
+    display: block;
+    color: var(--gray);
+    font-size: 14px
+}
+
+
+.rfid-card .btn-line:disabled {
+    opacity: .5;
+    cursor: not-allowed
+}
+
+/* ===== Cabinet (collapsible sidebar) ===== */
+.shell {
+    display: flex;
+    min-height: 100vh
+}
+
+.shell.init,
+.shell.init * {
+    transition: none !important
+}
+
+.side {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 248px;
+    flex: none;
+    background: var(--maroon-deep);
+    color: var(--on-maroon);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 12px;
+    border-right: 3px solid var(--gold);
+    overflow: hidden;
+    transition: width .3s cubic-bezier(.4, 0, .2, 1);
+    z-index: 30
+}
+
+.shell.collapsed .side {
+    width: 76px
+}
+
+.content {
+    flex: 1;
+    min-width: 0
+}
+
+.side-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 48px;
+    margin-bottom: 18px
+}
+
+.logo {
+    height: 34px;
+    width: auto;
+    max-width: 150px;
+    object-fit: contain;
+    transition: opacity .2s, max-width .3s;
+    padding-left: 6px
+}
+
+.shell.collapsed .logo {
+    opacity: 0;
+    max-width: 0;
+    padding: 0
+}
+
+.shell.collapsed .side-head {
+    justify-content: center
+}
+
+.icon-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    border: 0;
+    flex: none
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, .1)
+}
+
+.icon-btn.dark {
+    color: var(--ink)
+}
+
+.icon-btn.dark:hover {
+    background: var(--gray-soft)
+}
+
+.icon-btn svg,
+.nav svg,
+.logout svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none
+}
+
+#collapse svg {
+    transition: transform .3s
+}
+
+.shell.collapsed #collapse svg {
+    transform: rotate(180deg)
+}
+
+.nav {
+    display: grid;
+    gap: 4px
+}
+
+.nav a,
+.logout,
+.me {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    height: 46px;
+    padding: 0 13px;
+    border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+    font: 500 15px Figtree, sans-serif;
+    position: relative;
+    white-space: nowrap
+}
+
+.nav a:hover,
+.logout:hover,
+.me:hover {
+    background: rgba(255, 255, 255, .08)
+}
+
+.nav a[aria-current="page"] {
+    background: rgba(255, 255, 255, .14)
+}
+
+.nav a[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 10px;
+    bottom: 10px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--gold)
+}
+
+.nav a:focus-visible,
+.logout:focus-visible,
+.me:focus-visible,
+.icon-btn:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.lbl {
+    overflow: hidden;
+    transition: opacity .2s, max-width .3s;
+    max-width: 160px
+}
+
+.shell.collapsed .lbl {
+    opacity: 0;
+    max-width: 0
+}
+
+.side-foot {
+    margin-top: auto;
+    display: grid;
+    gap: 8px
+}
+
+.me {
+    height: 58px;
+    width: 100%;
+    background: rgba(255, 255, 255, .07);
+    border: 0;
+    border-radius: 12px;
+    text-align: left;
+    padding: 0 9px;
+    gap: 12px
+}
+
+.me-t {
+    display: grid;
+    line-height: 1.25
+}
+
+.me-t b {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+.me-t small {
+    font-size: 12px;
+    opacity: .75
+}
+
+.logout {
+    background: transparent;
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 0 0 10px 10px;
+    margin-top: 6px;
+    height: 48px;
+    width: 100%;
+    cursor: pointer
+}
+
+.av {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--gold);
+    color: #2B2326;
+    display: grid;
+    place-items: center;
+    font: 700 15px "Bricolage Grotesque", sans-serif;
+    overflow: hidden;
+    flex: none
+}
+
+.av img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+}
+
+.av.big {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    font-size: 22px
+}
+
+.mbar,
+.scrim {
+    display: none
+}
+
+.lbl-s {
+    font-size: 14px;
+    opacity: .85;
+    position: relative
+}
+
+.link {
+    color: var(--maroon);
+    font-weight: 600;
+    font-size: 14px
+}
+
+.how {
+    margin: 0;
+    color: var(--ink);
+    font-size: 15px;
+    max-width: 60ch
+}
+
+.view:not([hidden]) {
+    animation: vin .28s ease
+}
+
+@keyframes vin {
+    from {
+        opacity: 0;
+        transform: translateY(6px)
+    }
+
+    to {
+        opacity: 1;
+        transform: none
+    }
+}
+
+@media(max-width:760px) {
+    .side {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 248px;
+        transform: translateX(-100%);
+        transition: transform .3s cubic-bezier(.4, 0, .2, 1)
+    }
+
+    .shell.collapsed .side {
+        width: 248px
+    }
+
+    .shell.collapsed .lbl {
+        opacity: 1;
+        max-width: 160px
+    }
+
+    .shell.collapsed .logo {
+        opacity: 1;
+        max-width: 150px;
+        padding-left: 6px
+    }
+
+    .shell.open .side {
+        transform: none
+    }
+
+    .scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(43, 35, 38, .45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .3s;
+        z-index: 20
+    }
+
+    .shell.open .scrim {
+        opacity: 1;
+        pointer-events: auto
+    }
+
+    .mbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 56px;
+        padding: 0 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--gray-soft)
+    }
+}
+
+/* ===== Profile dialog (admin-style boxes) ===== */
+.modal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(43, 35, 38, .55);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity .22s ease;
+    z-index: 50
+}
+
+.modal.top {
+    z-index: 60
+}
+
+.modal.open {
+    opacity: 1
+}
+
+.pf-dialog {
+    width: min(380px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    background: var(--paper);
+    border-radius: 18px;
+    padding-bottom: 4px;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, .35);
+    transform: translateY(10px) scale(.98);
+    transition: transform .22s ease
+}
+
+.modal.open .pf-dialog {
+    transform: none
+}
+
+.dlg-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 10px
+}
+
+.dlg-head h2 {
+    font-size: 1.05rem;
+    margin: 0
+}
+
+.pd-box {
+    margin: 0 14px 12px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--gray-soft);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(43, 35, 38, .06)
+}
+
+.pd-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center
+}
+
+.av.pd-avatar {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    font-size: 1.6rem;
+    background: var(--maroon);
+    color: #fff;
+    border: 3px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--gray-soft), 0 6px 16px rgba(94, 21, 32, .18)
+}
+
+.pd-name {
+    margin-top: 12px;
+    font-weight: 700;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere
+}
+
+.pd-email {
+    color: var(--gray);
+    font-size: .85rem;
+    overflow-wrap: anywhere
+}
+
+.pd-h {
+    margin: 0 0 10px;
+    font-size: .98rem;
+    font-family: "Bricolage Grotesque", Figtree, sans-serif
+}
+
+.pin-meter,
+.pin-limit {
+    padding: 9px 12px;
+    border-radius: 10px;
+    display: grid;
+    gap: 2px;
+    font-size: .86rem;
+    margin-bottom: 12px
+}
+
+.pin-meter {
+    background: color-mix(in srgb, var(--maroon) 8%, transparent)
+}
+
+.pin-limit {
+    background: rgba(179, 65, 46, .1);
+    color: #7d2616
+}
+
+.pin-meter small,
+.pin-limit small {
+    color: inherit;
+    opacity: .8;
+    line-height: 1.35
+}
+
+.pd-pins {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px
+}
+
+.pd-pins label span {
+    display: block;
+    font-size: .76rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+    text-align: left
+}
+
+.pd-pins input {
+    width: 100%;
+    height: 40px;
+    padding: 0 6px;
+    text-align: center;
+    letter-spacing: .25em;
+    font: inherit;
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-soft);
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.pd-pins input:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 1px
+}
+
+.pd-pins input:disabled {
+    opacity: .5
+}
+
+.pd-msg {
+    margin: 12px 0 0;
+    padding: 9px 12px;
+    border-radius: 10px;
+    background: rgba(179, 65, 46, .1);
+    color: #7d2616;
+    font-size: .84rem
+}
+
+.btn-line,
+.btn-fill {
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px
+}
+
+.btn-line {
+    background: transparent;
+    color: var(--maroon);
+    border-color: var(--maroon)
+}
+
+.btn-fill {
+    background: var(--maroon);
+    color: var(--on-maroon)
+}
+
+.btn-fill:disabled {
+    opacity: .5;
+    cursor: not-allowed
+}
+
+.pd-wide {
+    width: 100%;
+    margin-top: 12px
+}
+
+.pf-dialog.cf {
+    width: min(400px, 100%)
+}
+
+.cf-body {
+    padding: 22px 22px 4px
+}
+
+.cf-body h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-family: "Bricolage Grotesque", Figtree, sans-serif
+}
+
+.cf-body p {
+    margin: 0 0 12px;
+    color: var(--gray);
+    font-size: .92rem;
+    line-height: 1.5
+}
+
+.cf-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 8px 22px 20px
+}
+
+.toast.show {
+    opacity: 1
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+    .side,
+    .lbl,
+    .logo,
+    .modal,
+    .pf-dialog,
+    .scrim,
+    #collapse svg {
+        transition: none !important
+    }
+
+    .view:not([hidden]) {
+        animation: none
+    }
+}
+
+/* ===== Wallet card: card number, daily limit bar, settings ===== */
+.wallet>* {
+    position: relative
+}
+
+.wallet-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px
+}
+
+.wallet .num {
+    margin: 4px 0 8px
+}
+
+
+
+
+
+.cardno b {
+    font-weight: 600;
+    letter-spacing: .04em;
+    margin-left: 6px
+}
+
+.limit {
+    margin-top: 16px
+}
+
+.limit-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    margin-bottom: 6px
+}
+
+.bar {
+    height: 8px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, .18);
+    overflow: hidden
+}
+
+.bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 99px;
+    background: var(--gold);
+    transition: width .5s cubic-bezier(.4, 0, .2, 1)
+}
+
+.bar.warn i {
+    background: #F0B08A
+}
+
+.bar.full i {
+    background: #E87C6A
+}
+
+.limit .lbl-s {
+    margin-top: 6px
+}
+
+.upd {
+    margin-top: 14px
+}
+
+.rfid-card .sub {
+    max-width: 30ch
+}
+
+/* ===== Pay Later ===== */
+.pl {
+    max-width: 640px
+}
+
+.pl h2 {
+    margin-bottom: 8px
+}
+
+.rules p {
+    margin: 0 0 10px;
+    font-size: 15px;
+    max-width: 60ch
+}
+
+.pl .btn-fill,
+.pl .btn-line {
+    margin-top: 14px;
+    border-radius: 999px;
+    padding: 10px 22px
+}
+
+.pl-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px
+}
+
+.badge {
+    background: color-mix(in srgb, var(--ok) 14%, transparent);
+    color: var(--ok);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin: 14px 0
+}
+
+.stat {
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: grid;
+    gap: 2px
+}
+
+.stat small {
+    color: var(--gray);
+    font-size: 13px
+}
+
+.stat b {
+    font: 700 20px "Bricolage Grotesque", sans-serif
+}
+
+.pl .how {
+    margin: 0 0 8px;
+    color: var(--gray);
+    font-size: 14px
+}
+
+.lab {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 12px 0 4px
+}
+
+.num-in {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    font: inherit;
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-soft);
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.num-in:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 1px
+}
+
+
+
+
+
+
+.cf-body p {
+    white-space: pre-line
+}
+
+/* ===== Parent link + Pay Later (inside the Student Wallet tab) ===== */
+.grid .wide {
+    grid-column: 1 / -1
+}
+
+.plink h2,
+.pl h2 {
+    margin-bottom: 6px
+}
+
+.plink .how {
+    color: var(--gray);
+    font-size: 14px;
+    margin-bottom: 14px
+}
+
+.plink-body {
+    display: flex;
+    gap: 22px;
+    align-items: center;
+    flex-wrap: wrap
+}
+
+.qr-box {
+    width: 176px;
+    height: 176px;
+    flex: none;
+    padding: 10px;
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--gray-soft);
+    display: grid;
+    place-items: center;
+    position: relative
+}
+
+.qr-box canvas,
+.qr-box img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block
+}
+
+.qr-box.stale {
+    opacity: .25
+}
+
+.plink-side {
+    display: grid;
+    gap: 6px;
+    min-width: 200px;
+    flex: 1
+}
+
+.code-lbl {
+    font-size: 13px;
+    color: var(--gray)
+}
+
+.code {
+    font: 700 38px/1 "Bricolage Grotesque", sans-serif;
+    letter-spacing: .18em;
+    color: var(--maroon)
+}
+
+.timer {
+    font-size: 14px;
+    color: var(--gray)
+}
+
+.timer b {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums
+}
+
+.plink .btn-line {
+    margin-top: 8px;
+    border-radius: 999px;
+    padding: 8px 18px;
+    justify-self: start
+}
+
+.badge.ok {
+    display: inline-block
+}
+
+.lock {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: var(--paper);
+    border: 1px dashed var(--gray-soft);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 4px
+}
+
+.lock svg {
+    width: 26px;
+    height: 26px;
+    flex: none;
+    fill: none;
+    stroke: var(--maroon);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round
+}
+
+.lock b {
+    display: block;
+    margin-bottom: 2px
+}
+
+.lock p {
+    margin: 0;
+    color: var(--gray);
+    font-size: 14px
+}
+
+.pl {
+    max-width: none
+}
+
+/* ===== Parent widget (under Card details) ===== */
+.pw {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gray-soft);
+    font-size: 14px
+}
+
+.pw .dot {
+    width: 10px;
+    height: 10px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 20%, transparent)
+}
+
+.pw .dot.off {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--gray) 20%, transparent)
+}
+
+.pw-t {
+    flex: 1;
+    color: var(--gray)
+}
+
+.pw-btn {
+    border: 0;
+    background: transparent;
+    color: var(--maroon);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 2px
+}
+
+.pw-btn:hover {
+    text-decoration: underline
+}
+
+.pw-btn:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 6px
+}
+
+/* Parent link popup */
+.pk-box {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    text-align: center
+}
+
+.pk-box .how {
+    color: var(--gray);
+    font-size: 14px;
+    margin-bottom: 4px
+}
+
+.pk-box .btn-line {
+    border-radius: 999px;
+    padding: 8px 18px;
+    margin-top: 4px
+}
+
+.pk-box .qr-box {
+    margin: 4px 0
+}
+
+/* PIN shown to the student for their parent (replaces the QR on the last sign-up step) */
+.pk-pin {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    padding: 22px 16px;
+    border-radius: 14px;
+    background: var(--paper);
+    border: 1.5px solid var(--gold)
+}
+
+.pk-pin[hidden] {
+    display: none
+}
+
+.pk-pin .code {
+    font-size: 46px;
+    letter-spacing: .12em
+}
+
+/* ============================================================
+   Parent overview additions
+   ============================================================ */
+.logo {
+    -webkit-user-drag: none;
+    user-select: none
+}
+
+.empty-card {
+    text-align: left
+}
+
+.empty-card .how {
+    margin: 6px 0 0;
+    color: var(--gray)
+}
+
+/* Linked student card (uses the same card look as "Card details") */
+.stu-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 4px 0 14px
+}
+
+.stu-t {
+    display: grid;
+    gap: 2px;
+    min-width: 0
+}
+
+.stu-t strong {
+    overflow-wrap: anywhere
+}
+
+.stu-t .sub {
+    color: var(--gray);
+    font-size: 14px
+}
+
+/* ============================================================
+   First-login popup: "Link Student Account"
+   Colours come from the TapMate palette; change --lk-head to restyle the header.
+   ============================================================ */
+.lk-dialog {
+    --lk-head: var(--maroon);
+    --lk-on-head: var(--on-maroon);
+    width: min(440px, 100%);
+    max-height: calc(100dvh - 24px);
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column
+}
+
+.lk-head {
+    flex: none;
+    text-align: center;
+    padding: 22px 20px 18px;
+    background: var(--lk-head);
+    color: var(--lk-on-head)
+}
+
+.lk-head h2 {
+    margin: 10px 0 2px;
+    font-size: 1.15rem
+}
+
+.lk-head p {
+    margin: 0;
+    font-size: .84rem;
+    opacity: .85
+}
+
+.lk-ico {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .14);
+    border: 1.5px solid var(--gold)
+}
+
+.lk-ico svg {
+    width: 26px;
+    height: 26px
+}
+
+.lk-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px 20px 6px;
+    text-align: left
+}
+
+.lk-eyebrow {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--gray)
+}
+
+.lk-q {
+    margin: 6px 0 4px;
+    font-size: 1.12rem;
+    font-family: "Bricolage Grotesque", Figtree, system-ui, sans-serif
+}
+
+.lk-lead {
+    margin: 0 0 10px;
+    color: var(--gray);
+    font-size: .92rem
+}
+
+.lk-student {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--gray-soft);
+    border-radius: 14px
+}
+
+.lk-grad {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(201, 162, 75, .2);
+    color: var(--maroon)
+}
+
+.lk-st-t {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+    flex: 1
+}
+
+.lk-st-t b {
+    overflow-wrap: anywhere
+}
+
+.lk-st-t small {
+    color: var(--gray)
+}
+
+.lk-shield {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    color: var(--ok)
+}
+
+.lk-sec {
+    margin: 14px 0 8px;
+    font-weight: 600;
+    font-size: .92rem
+}
+
+.lk-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px
+}
+
+/* the transaction list's generic `li` rules (grid, padding, top border) must not leak in here */
+.lk-list li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 0;
+    border: 0
+}
+
+.lk-list svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    color: var(--maroon)
+}
+
+.lk-list b {
+    display: block;
+    font-size: .92rem
+}
+
+.lk-list span {
+    display: block;
+    color: var(--gray);
+    font-size: .84rem;
+    line-height: 1.4
+}
+
+.lk-ico svg,
+.lk-grad svg,
+.lk-shield,
+.lk-list svg,
+.lk-note svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round
+}
+
+.lk-grad svg {
+    width: 22px;
+    height: 22px
+}
+
+.lk-note {
+    display: flex;
+    gap: 12px;
+    margin: 18px 0 12px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1.5px solid var(--gold);
+    border-radius: 14px
+}
+
+.lk-note svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    color: var(--maroon)
+}
+
+.lk-note b {
+    display: block;
+    font-size: .92rem
+}
+
+.lk-note p {
+    margin: 4px 0 0;
+    color: var(--gray);
+    font-size: .86rem;
+    line-height: 1.45
+}
+
+.lk-fine {
+    margin: 0 0 8px;
+    color: var(--gray);
+    font-size: .76rem;
+    line-height: 1.45
+}
+
+/* Sticky footer: the checkbox and button stay reachable on small screens */
+.lk-foot {
+    flex: none;
+    padding: 12px 20px 16px;
+    background: var(--paper);
+    border-top: 1px solid var(--gray-soft);
+    display: grid;
+    gap: 10px
+}
+
+.lk-check {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    cursor: pointer;
+    font-size: .9rem;
+    line-height: 1.4
+}
+
+.lk-check input {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    border-radius: 50%;
+    border: 2px solid var(--gray);
+    background: var(--surface);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease
+}
+
+.lk-check input::after {
+    content: "";
+    width: 10px;
+    height: 5px;
+    margin-top: -2px;
+    border-left: 2.5px solid #fff;
+    border-bottom: 2.5px solid #fff;
+    transform: rotate(-45deg) scale(0);
+    transition: transform .15s ease
+}
+
+.lk-check input:checked {
+    background: var(--maroon);
+    border-color: var(--maroon)
+}
+
+.lk-check input:checked::after {
+    transform: rotate(-45deg) scale(1)
+}
+
+.lk-check input:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.lk-go {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600
+}
+
+.lk-foot .pd-msg {
+    margin: 0
+}
+
+.lk-out {
+    justify-self: center;
+    padding: 4px 8px;
+    border: 0;
+    background: none;
+    color: var(--gray);
+    font: inherit;
+    font-size: .84rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer
+}
+
+.lk-out:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 6px
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .lk-check input,
+    .lk-check input::after {
+        transition: none
+    }
+}
+
+/* ===== Pay Later module + prompt (parent) ===== */
+.side-col {
+    display: grid;
+    gap: 20px;
+    align-content: start;
+    min-width: 0
+}
+
+.plc {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    transition: border-color .15s, transform .15s
+}
+
+.plc[hidden] {
+    display: none
+}
+
+.plc:hover {
+    border-color: var(--gray)
+}
+
+.plc:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.plc-t {
+    flex: 1;
+    display: grid;
+    gap: 2px;
+    min-width: 0
+}
+
+.plc-t b {
+    font: 700 18px "Bricolage Grotesque", sans-serif
+}
+
+.plc-t small {
+    color: var(--gray);
+    font-size: 14px
+}
+
+.plc-go {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: var(--gray);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none
+}
+
+.plc .badge[hidden] {
+    display: none
+}
+
+.plm-box {
+    display: grid;
+    gap: 12px
+}
+
+.plm-rules p {
+    margin: 0 0 10px;
+    font-size: 15px;
+    line-height: 1.5
+}
+
+.plm-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px
+}
+
+.pl-act {
+    width: 100%;
+    border-radius: 999px;
+    padding: 12px 22px;
+    white-space: normal;
+    line-height: 1.3
+}
+
+.pl-act:disabled {
+    background: var(--gray-soft);
+    color: var(--gray);
+    cursor: not-allowed;
+    opacity: 1;
+    box-shadow: none
+}
+
+/* ===== Link to a student now (camera scan) ===== */
+.empty-card .btn-fill {
+    margin-top: 14px;
+    border-radius: 999px;
+    padding: 10px 22px
+}
+
+.sc-box {
+    display: grid;
+    gap: 12px
+}
+
+.sc-cam {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    max-height: 56vh;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000
+}
+
+.sc-cam video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block
+}
+
+.sc-frame {
+    position: absolute;
+    inset: 18%;
+    border: 3px solid rgba(255, 255, 255, .85);
+    border-radius: 18px;
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, .35);
+    pointer-events: none
+}
+
+.sc-pin {
+    width: 100%;
+    height: 56px;
+    text-align: center;
+    letter-spacing: .6em;
+    font: 700 28px "Bricolage Grotesque", sans-serif;
+    border-radius: 12px;
+    border: 1.5px solid var(--gray-soft);
+    background: var(--paper);
+    color: var(--ink)
+}
+
+.sc-pin:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 1px
+}
+
+#sc-step-pin {
+    display: grid;
+    gap: 12px
+}
+
+#sc-step-pin[hidden],
+#sc-step-scan[hidden] {
+    display: none
+}
