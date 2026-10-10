@@ -69,6 +69,7 @@ class PhoneServer:
         self.token = None
         self.last_seen = 0.0
         self.opened = False
+        self.opened_at = 0.0
         self._httpd = None
 
     # ---- lifecycle ----
@@ -98,12 +99,14 @@ class PhoneServer:
                         return self._send(410, ENDED_PAGE.encode(), "text/html; charset=utf-8")
                     return self._send(410, {"ok": False, "reason": "ended"})
                 if len(parts) == 1 and method == "GET":          # /<token>  ->  /<token>/order_tally_PIN.html
-                    outer.opened = True; outer.last_seen = time.monotonic()
                     return self._send(302, b"", "text/plain", location=f"/{tok}/order_tally_PIN.html")
                 if len(parts) == 2 and method == "GET" and parts[1] in TALLY_FILES:
-                    if parts[1].endswith(".html"):
-                        outer.opened = True; outer.last_seen = time.monotonic()   # the phone opened the page = connected
-                    return self._send(200, tally_file(parts[1]), TALLY_FILES[parts[1]])
+                    self._send(200, tally_file(parts[1]), TALLY_FILES[parts[1]])
+                    if parts[1].endswith(".html") and outer.token == tok:
+                        # Mark the phone as connected only AFTER the page has been fully sent. Connecting starts the
+                        # camera + AI model on the kiosk, and that can stall the whole program for a few seconds.
+                        outer.opened_at = time.monotonic(); outer.opened = True
+                    return
                 kind = parts[1] if len(parts) == 2 else ""
                 if kind not in KINDS or (kind == "state") != (method == "GET"):
                     return self._send(404, {"ok": False, "reason": "not_found"})
@@ -136,18 +139,18 @@ class PhoneServer:
 
     # ---- sessions ----
     def new_session(self):
-        self.token = secrets.token_urlsafe(16); self.last_seen = 0.0; self.opened = False
+        self.token = secrets.token_urlsafe(16); self.last_seen = 0.0; self.opened = False; self.opened_at = 0.0
         return self.token
 
     def revoke(self):
-        self.token = None; self.last_seen = 0.0; self.opened = False
+        self.token = None; self.last_seen = 0.0; self.opened = False; self.opened_at = 0.0
 
     def url(self):
         host = self.s["host"] or lan_ip()
         return f"http://{host}:{self.s['port']}/{self.token}" if self.token else ""
 
     def connected(self):
-        return self.token is not None and (self.opened or time.monotonic() - self.last_seen < 4)
+        return self.token is not None and ((self.opened and time.monotonic() - self.opened_at > 1.5) or time.monotonic() - self.last_seen < 4)
 
     # ---- bridge to the UI thread ----
     def ask(self, kind, body):
