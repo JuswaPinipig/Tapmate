@@ -65,24 +65,19 @@
                         <button id="parentLink" class="alt-link" type="button">LOGIN AS PARENT</button>
                     </form>
 
-                    <!-- Parent: email or mobile + password + the 4-digit PIN from sign-up -->
+                    <!-- Parent: email + password first; the PIN screen opens after they check out -->
                     <form id="parentArea" class="email-area" hidden novalidate autocomplete="off">
                         <div class="field">
-                            <input id="parentContact" name="parent-contact" type="text" placeholder=" "
-                                inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false">
-                            <label for="parentContact">Email or mobile number</label>
+                            <input id="parentContact" name="parent-email" type="email" placeholder=" " inputmode="email"
+                                autocomplete="username" autocapitalize="off" spellcheck="false">
+                            <label for="parentContact">Email</label>
                         </div>
                         <div class="field">
                             <input id="parentPw" name="parent-password" type="password" placeholder=" "
                                 autocomplete="current-password" spellcheck="false">
                             <label for="parentPw">Password</label>
                         </div>
-                        <div class="field">
-                            <input id="parentPin" name="parent-pin" type="password" placeholder=" " inputmode="numeric"
-                                maxlength="4" autocomplete="off" spellcheck="false">
-                            <label for="parentPin">4-digit PIN</label>
-                        </div>
-                        <button id="parentBtn" class="btn" type="submit">LOG IN</button>
+                        <button id="parentBtn" class="btn" type="submit">CONTINUE</button>
                         <button id="studentLink" class="alt-link" type="button">LOGIN WITH SCHOOL EMAIL</button>
                     </form>
                 </section>

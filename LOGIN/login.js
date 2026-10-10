@@ -55,7 +55,6 @@ const emailBtnEl = document.getElementById("emailBtn");
 const parentAreaEl = document.getElementById("parentArea");
 const parentContactEl = document.getElementById("parentContact");
 const parentPwEl = document.getElementById("parentPw");
-const parentPinEl = document.getElementById("parentPin");
 const parentBtnEl = document.getElementById("parentBtn");
 const parentLinkEl = document.getElementById("parentLink");
 const studentLinkEl = document.getElementById("studentLink");
@@ -79,6 +78,7 @@ let viewTimer = null;
 let swapTimer = null;
 let heightTimer = null;
 let currentUid = null;
+let parentCred = null;         // {contact, password} held only while a parent is typing their PIN
 let pin = "";
 let buffer = "";
 let lastKeyTime = 0;
@@ -194,11 +194,10 @@ swipeEl.addEventListener("pointerup", endDrag);
 swipeEl.addEventListener("pointercancel", endDrag);
 
 parentAreaEl.addEventListener("submit", submitParent);
-[parentContactEl, parentPwEl, parentPinEl].forEach((el) => el.addEventListener("input", () => {
+[parentContactEl, parentPwEl].forEach((el) => el.addEventListener("input", () => {
     armParentIdle();
     hideMessage();
 }));
-parentPinEl.addEventListener("input", () => { parentPinEl.value = parentPinEl.value.replace(/\D/g, ""); });
 
 emailAreaEl.addEventListener("submit", submitEmail);
 [emailInputEl, rfidInputEl].forEach((el) => el.addEventListener("input", () => {
@@ -308,9 +307,10 @@ async function submitEmail(e) {
 
 // ------------------------------------------------------------
 // 4c. PARENT SIGN-IN
-//     Email or mobile + password + 4-digit PIN, all checked together
-//     on the server by parent_login() (see parent_login.sql). It hands
-//     back the same kind of session token as a card login.
+//     Step 1: email + password (checked by parent_login_check).
+//     Step 2: the PIN screen opens; the PIN is typed like a card PIN and
+//     parent_login() re-checks all three and hands back a session token.
+//     See parent_login.sql.
 // ------------------------------------------------------------
 function openParent() {
     clearTimeout(idleTimer);
@@ -341,23 +341,22 @@ function armParentIdle() {
 function clearParentFields() {
     parentContactEl.value = "";
     parentPwEl.value = "";
-    parentPinEl.value = "";
     parentBtnEl.disabled = false;
+    parentCred = null;
 }
 
 async function submitParent(e) {
     e.preventDefault();
     if (state !== "parent") return;
 
-    const contact = parentContactEl.value.trim();
+    const email = parentContactEl.value.trim().toLowerCase();
     const password = parentPwEl.value;
-    const pinCode = parentPinEl.value;
 
-    if (!contact || !password || !pinCode) {
-        return showMessage("Please fill in all three fields.", "Enter your email or mobile number, password and PIN.");
+    if (!email || !password) {
+        return showMessage("Please fill in both fields.", "Enter your email and password.");
     }
-    if (!/^\d{4}$/.test(pinCode)) {
-        return showMessage("Your PIN is 4 digits.", "Enter the PIN you saved when you signed up.");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return showMessage("That doesn't look like an email.", "Enter the email you signed up with.");
     }
 
     state = "busy";
@@ -366,11 +365,11 @@ async function submitParent(e) {
 
     let res;
     try {
-        const { data, error } = await db.rpc("parent_login", { p_contact: contact, p_password: password, p_pin: pinCode });
+        const { data, error } = await db.rpc("parent_login_check", { p_contact: email, p_password: password });
         if (error) throw error;
         res = data;
     } catch (err) {
-        console.error("parent_login failed:", err);
+        console.error("parent_login_check failed:", err);
         state = "parent";
         parentBtnEl.disabled = false;
         armParentIdle();
@@ -378,8 +377,11 @@ async function submitParent(e) {
     }
 
     if (res.ok) {
-        clearParentFields();
-        return loginSuccess(res);
+        // Email and password are right: ask for the PIN (same screen as a card PIN)
+        clearParentFields();                 // wipes the form...
+        parentCred = { contact: email, password: password };   // ...and keeps them only for the PIN step
+        currentUid = null;
+        return enterPin(res.first_name || "");
     }
 
     if (res.reason === "locked") {
@@ -393,17 +395,16 @@ async function submitParent(e) {
         return failWithNotice("This account is inactive. Please reach out to an admin.");
     }
 
-    // Same message whichever of the three is wrong, on purpose
+    // Same message whichever of the two is wrong, on purpose
     state = "parent";
     parentBtnEl.disabled = false;
     parentPwEl.value = "";
-    parentPinEl.value = "";
     parentAreaEl.classList.remove("shake");
     void parentAreaEl.offsetWidth;
     parentAreaEl.classList.add("shake");
     parentPwEl.focus();
     armParentIdle();
-    showMessage("Incorrect email, password or PIN.", "Check them and try again.");
+    showMessage("Incorrect email or password.", "Check them and try again.");
 }
 
 // ------------------------------------------------------------
@@ -464,6 +465,7 @@ function enterPin(name) {
 function exitPin() {
     clearTimeout(idleTimer);
     currentUid = null;
+    parentCred = null;
     pin = "";
     state = "waiting";
     clearStatusNow();
@@ -510,11 +512,13 @@ async function submitPin() {
 
     let res;
     try {
-        const { data, error } = await db.rpc("card_login", { p_uid: currentUid, p_pin: pin });
+        const { data, error } = parentCred
+            ? await db.rpc("parent_login", { p_contact: parentCred.contact, p_password: parentCred.password, p_pin: pin })
+            : await db.rpc("card_login", { p_uid: currentUid, p_pin: pin });
         if (error) throw error;
         res = data;
     } catch (err) {
-        console.error("card_login failed:", err);
+        console.error((parentCred ? "parent_login" : "card_login") + " failed:", err);
         pin = "";
         renderDots();
         state = "pin";
@@ -532,12 +536,13 @@ async function submitPin() {
             state = "pin";
             armIdle();
             const left = res.attempts_left;
-            showMessage("Incorrect PIN.", left + (left === 1 ? " attempt" : " attempts") + " left.");
+            showMessage("Incorrect PIN.", Number.isFinite(left)
+                ? left + (left === 1 ? " attempt" : " attempts") + " left." : "Try again.");
             break;
         }
         case "locked": {
             const mins = Math.max(1, Math.ceil((res.retry_after_seconds || 0) / 60));
-            failWithNotice("Too many wrong PINs. This ID is locked. Try again in " + mins +
+            failWithNotice("Too many wrong PINs. This " + (parentCred ? "account" : "ID") + " is locked. Try again in " + mins +
                 (mins === 1 ? " minute" : " minutes") + " or reach out to an admin.");
             break;
         }
@@ -548,11 +553,14 @@ async function submitPin() {
             failWithNotice("This account is inactive. Please reach out to an admin.");
             break;
         default:
-            failWithNotice("This ID is not currently assigned please reach out to an admin to link your ID.");
+            failWithNotice(parentCred
+                ? "We couldn't sign you in. Please log in again."
+                : "This ID is not currently assigned please reach out to an admin to link your ID.");
     }
 }
 
 function loginSuccess(res) {
+    parentCred = null;
     const profile = res.profile;
 
     // Other pages can read this and call card_session(token) to confirm it.
