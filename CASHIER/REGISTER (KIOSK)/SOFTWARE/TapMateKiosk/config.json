@@ -16,5 +16,12 @@
     "serial_port": "COM3",
     "baud": 9600
   },
+  "phone": {
+    "enabled": true,
+    "required": true,
+    "host": "",
+    "port": 8765,
+    "pin_length": 4
+  },
   "fullscreen": false
 }

@@ -430,14 +430,13 @@ pinForm.addEventListener("submit", async (e) => {
 const COLUMNS = "id, role, status, student_id, first_name, middle_name, last_name, suffix, full_name, email, phone, rfid_uid, rfid_frozen, guardians, balance, daily_limit, pay_later_enabled";
 
 const ROLES = {
-    all: { singular: "account", plural: "accounts", idLabel: "Student ID / Email", search: "Search by full name, student ID number or email" },
     student: { singular: "student", plural: "students", idLabel: "Student ID number", search: "Search by student ID number or full name" },
     faculty: { singular: "faculty account", plural: "faculty accounts", idLabel: "Email", search: "Search by full name or email" },
     admin: { singular: "admin account", plural: "admin accounts", idLabel: "Email", search: "Search by full name or email" },
     cashier: { singular: "cashier account", plural: "cashier accounts", idLabel: "Email", search: "Search by full name or email" },
     parent: { singular: "parent account", plural: "parent accounts", idLabel: "Email / Phone", search: "Search by parent name, email, phone, or their student's name or ID" }
 };
-let roleFilter = ""; // "" = no filter: show every account
+let roleFilter = "student"; // always one role; opens on Students (there is no "all accounts" view)
 let archivedView = false;
 let currentTerm = "";
 let currentPage = 1;
@@ -643,7 +642,7 @@ async function loadTable(term, page = 1) {
 const ARCHIVE_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></svg>';
 
 function renderTable(list, title, term = "", total = list.length) {
-    const info = ROLES[roleFilter || "all"];
+    const info = ROLES[roleFilter];
     currentRows = list;
     const parentView = roleFilter === "parent";
     document.querySelectorAll("th[data-v]").forEach((th) => { th.hidden = (th.dataset.v === "parent") !== parentView; });
@@ -660,7 +659,7 @@ function renderTable(list, title, term = "", total = list.length) {
             : archivedView
                 ? "No archived " + info.plural + (term ? " match your search." : " yet.")
                 : term
-                    ? "No " + info.plural + " found. Try another name or " + (!roleFilter ? "student ID or email" : roleFilter === "student" ? "ID number" : "email") + ", or create a new account."
+                    ? "No " + info.plural + " found. Try another name or " + (roleFilter === "student" ? "ID number" : "email") + ", or create a new account."
                     : "No " + info.plural + " yet. Click \"New account\" to add the first one.";
         return;
     }
@@ -696,8 +695,7 @@ function renderTable(list, title, term = "", total = list.length) {
             (s.rfid_frozen ? ' <span class="badge warn">Frozen</span>' : "");
         tr.innerHTML =
             '<td class="mono">' + highlight((s.role === "student" ? s.student_id : s.email) || "-", t) + "</td>" +
-            "<td>" + highlight(displayName(s), t) +
-            (!roleFilter ? ' <span class="badge none role-tag">' + escapeHtml(s.role.charAt(0).toUpperCase() + s.role.slice(1)) + "</span>" : "") + "</td>" +
+            "<td>" + highlight(displayName(s), t) + "</td>" +
             '<td class="num">' + peso.format(Number(s.balance || 0)) + "</td>" +
             '<td class="num">' + peso.format(Number(s.daily_limit || 0)) + "</td>" +
             "<td>" + rfidCell + "</td>" +
@@ -749,7 +747,7 @@ function setRole(role, reload = true) {
         p.classList.toggle("on", on);
         p.setAttribute("aria-selected", String(on));
     });
-    const info = ROLES[role || "all"];
+    const info = ROLES[role];
     searchInput.placeholder = info.search;
     thId.textContent = info.idLabel;
     moveSlider();
@@ -761,8 +759,9 @@ function setRole(role, reload = true) {
 rolePills.addEventListener("click", (e) => {
     const b = e.target.closest(".pill");
     if (!b) return;
-    // clicking the active pill again clears the filter and shows every account
-    setRole(b.dataset.role === roleFilter ? "" : b.dataset.role);
+    // one role is always selected: clicking the active pill does nothing
+    if (b.dataset.role === roleFilter) return;
+    setRole(b.dataset.role);
 });
 
 function flashRow(id) {
@@ -885,7 +884,7 @@ nextBtn.addEventListener("click", async () => {
 // Staff (faculty / admin / cashier) share one flow; only the labels and a few fields differ
 const isStaff = () => ["faculty", "admin", "cashier"].includes(fRole.value);
 
-// Students: 1 Information, 2 ID, 3 Guardian Information, 4 Wallet. Staff skip step 3.
+// Students: 1 Information, 2 ID, 3 Linked Parent Account, 4 Wallet. Staff skip step 3.
 const seq = () => (isStaff() ? [1, 2, 4] : [1, 2, 3, 4]);
 const lastStep = () => { const s = seq(); return s[s.length - 1]; };
 function stepAfter(d) {
@@ -933,105 +932,132 @@ fSuffix.addEventListener("input", () => {
     if (c !== fSuffix.value) fSuffix.value = c;
 });
 
-// ---------- guardians (students only, 1 required, max 3) ----------
-const MAX_GUARDIANS = 3;
-const guardianList = $("guardianList");
-const addGuardianBtn = $("addGuardianBtn");
-let guardians = [];
-const newGuardian = () => ({ name: "", method: "", contact: "" });
+// ---------- linked parent account (students only; link / unlink from here) ----------
+const lpEls = {
+    loading: $("lpLoading"), isNew: $("lpNew"), linked: $("lpLinked"), none: $("lpNone"),
+    search: $("lpSearch"), results: $("lpResults"), msg: $("lpMsg")
+};
+let linkedParent = null;   // { id, full_name, email, phone } or null
+let lpStudent = null;      // the student being edited (null while creating)
+let lpSeq = 0;
 
-function setContactField(card, g, focus) {
-    const wrap = card.querySelector('[data-g="contactWrap"]');
-    const input = card.querySelector('[data-g="contact"]');
-    wrap.hidden = !g.method;
-    if (!g.method) return;
-    const sms = g.method === "sms";
-    wrap.querySelector("span").textContent = sms ? "Mobile number (SMS)" : "Email address";
-    input.type = sms ? "tel" : "email";
-    input.inputMode = sms ? "numeric" : "email";
-    input.maxLength = sms ? 11 : 120;
-    input.placeholder = sms ? "09123456789" : "guardian@email.com";
-    input.value = g.contact;
-    if (focus) { wrap.classList.remove("g-contact"); void wrap.offsetWidth; wrap.classList.add("g-contact"); input.focus(); }
+function lpMessage(msg) { lpEls.msg.textContent = msg || ""; lpEls.msg.hidden = !msg; }
+
+function lpRender(state) {   // state: "loading" | "new" | "ready"
+    lpEls.loading.hidden = state !== "loading";
+    lpEls.isNew.hidden = state !== "new";
+    lpEls.linked.hidden = !(state === "ready" && linkedParent);
+    lpEls.none.hidden = !(state === "ready" && !linkedParent);
+    if (state === "ready" && linkedParent) {
+        $("lpAv").textContent = initials(linkedParent.full_name);
+        $("lpName").textContent = displayName(linkedParent);
+        $("lpMeta").textContent = [linkedParent.email, linkedParent.phone].filter(Boolean).join("  \u2022  ") || "No contact details";
+    }
+    lpMessage("");
 }
 
-function renderGuardians(focusIdx) {
-    guardianList.innerHTML = "";
-    guardians.forEach((g, i) => {
-        const card = document.createElement("div");
-        card.className = "g-card";
-        card.innerHTML =
-            '<div class="g-head"><b>Guardian ' + (i + 1) + (i === 0 ? ' <span class="req">(required)</span>' : "") + "</b>" +
-            (i > 0 ? '<button type="button" class="btn ghost small" data-g="remove">Remove</button>' : "") + "</div>" +
-            '<label class="field"><span>Full name</span><input data-g="name" type="text" maxlength="80" autocomplete="off" placeholder="Guardian\'s full name"></label>' +
-            '<label class="field"><span>Contact method</span><select class="select" data-g="method">' +
-            '<option value="">Select Email or SMS</option><option value="email">Email</option><option value="sms">SMS</option></select></label>' +
-            '<label class="field" data-g="contactWrap" hidden><span></span><input data-g="contact" autocomplete="off"></label>';
-        card.querySelector('[data-g="name"]').value = g.name;
-        card.querySelector('[data-g="method"]').value = g.method;
-        guardianList.appendChild(card);
-        setContactField(card, g, false);
-    });
-    $("guardianCount").textContent = guardians.length + "/" + MAX_GUARDIANS;
-    addGuardianBtn.disabled = guardians.length >= MAX_GUARDIANS;
-    addGuardianBtn.title = addGuardianBtn.disabled ? "A maximum of 3 guardians can be added" : "";
-    if (focusIdx !== undefined) guardianList.children[focusIdx].querySelector('[data-g="name"]').focus();
+// The parent list already returns each parent's linked student, so searching it by the student's ID finds their parent.
+async function lpLoad() {
+    lpSeq++;
+    linkedParent = null;
+    lpEls.search.value = ""; lpEls.results.innerHTML = "";
+    if (!lpStudent) return lpRender("new");
+    if (!db) return lpRender("ready");
+    const mySeq = lpSeq;
+    lpRender("loading");
+    try {
+        const { data, error } = await db.rpc("admin_parent_list", {
+            p_token: cardToken(), p_search: cleanTerm(lpStudent.student_id || lpStudent.full_name),
+            p_archived: false, p_limit: 20, p_offset: 0
+        });
+        if (error) throw error;
+        if (mySeq !== lpSeq) return;
+        linkedParent = (data || []).find((p) => p.student_id && p.student_id === lpStudent.student_id) || null;
+        lpRender("ready");
+    } catch (err) {
+        if (mySeq !== lpSeq) return;
+        lpRender("ready");
+        lpMessage(friendlyError(err));
+    }
 }
 
-addGuardianBtn.addEventListener("click", () => {
-    if (guardians.length >= MAX_GUARDIANS) return;
-    guardians.push(newGuardian());
-    renderGuardians(guardians.length - 1);
-});
-
-guardianList.addEventListener("input", (e) => {
-    const card = e.target.closest(".g-card");
-    const key = e.target.dataset.g;
-    if (!card || !key) return;
-    const g = guardians[Array.prototype.indexOf.call(guardianList.children, card)];
-    if (key === "name") {
-        const c = cleanName(e.target.value);
-        if (c !== e.target.value) e.target.value = c;
-        g.name = c;
-    } else if (key === "contact") {
-        if (g.method === "sms") {
-            const d = e.target.value.replace(/\D/g, "").slice(0, 11);
-            if (d !== e.target.value) e.target.value = d;
+const lpSearchRun = debounce(async () => {
+    const term = cleanTerm(lpEls.search.value);
+    const mySeq = ++lpSeq;
+    if (!term) { lpEls.results.innerHTML = ""; return; }
+    try {
+        const { data, error } = await db.rpc("admin_parent_list", {
+            p_token: cardToken(), p_search: term, p_archived: false, p_limit: 8, p_offset: 0
+        });
+        if (error) throw error;
+        if (mySeq !== lpSeq) return;
+        const rows = data || [];
+        lpEls.results.innerHTML = "";
+        if (!rows.length) {
+            const li = document.createElement("li"); li.className = "pa-none"; li.textContent = 'No parents match "' + term + '".';
+            lpEls.results.appendChild(li); return;
         }
-        g.contact = e.target.value;
+        rows.forEach((p, i) => {
+            const taken = !!p.student_name;
+            const li = document.createElement("li");
+            li.innerHTML = '<button type="button" data-i="' + i + '"' + (taken ? " disabled" : "") + ">" +
+                '<span class="sg-avatar">' + escapeHtml(initials(p.full_name)) + "</span>" +
+                '<span class="pa-r-t"><b>' + highlight(displayName(p), term) + "</b><small>" + highlight(p.email || p.phone || "-", term) +
+                (taken ? " \u2022 already linked to " + escapeHtml(p.student_name) : "") + "</small></span></button>";
+            lpEls.results.appendChild(li);
+        });
+        lpEls.results._rows = rows;
+    } catch (err) {
+        if (mySeq === lpSeq) lpMessage(friendlyError(err));
     }
-    e.target.classList.remove("invalid");
-});
+}, 220);
+lpEls.search.addEventListener("input", lpSearchRun);
 
-guardianList.addEventListener("change", (e) => {
-    if (e.target.dataset.g !== "method") return;
-    const card = e.target.closest(".g-card");
-    const g = guardians[Array.prototype.indexOf.call(guardianList.children, card)];
-    g.method = e.target.value;
-    g.contact = "";
-    setContactField(card, g, true);
-});
-
-guardianList.addEventListener("click", (e) => {
-    const b = e.target.closest('[data-g="remove"]');
-    if (!b) return;
-    guardians.splice(Array.prototype.indexOf.call(guardianList.children, b.closest(".g-card")), 1);
-    renderGuardians();
-});
-
-function validateGuardians() {
-    for (let i = 0; i < guardians.length; i++) {
-        const g = guardians[i];
-        const card = guardianList.children[i];
-        const mark = (k) => card.querySelector('[data-g="' + k + '"]').classList.add("invalid");
-        const label = "Guardian " + (i + 1) + ": ";
-        if (!g.name.trim() || !NAME_RE.test(g.name.trim())) { mark("name"); toast(label + "enter the guardian's full name (letters only).", true); return false; }
-        if (!g.method) { mark("method"); toast(label + "choose Email or SMS.", true); return false; }
-        if (g.method === "sms" && !PHONE_PATTERN.test(g.contact)) { mark("contact"); toast(label + "enter an 11-digit mobile number starting with 09.", true); return false; }
-        if (g.method === "email" && !EMAIL_RE.test(g.contact.trim())) { mark("contact"); toast(label + "enter a valid email address.", true); return false; }
+lpEls.results.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-i]");
+    if (!b || b.disabled || !lpStudent) return;
+    const p = (lpEls.results._rows || [])[Number(b.dataset.i)];
+    if (!p) return;
+    const ok = await confirmAction({
+        title: "Link " + displayName(p) + " to " + displayName(lpStudent) + "?",
+        html: "This parent will be able to see the student's wallet and transactions, top up their balance, and activate Pay Later for them.<br><br>" + AUDIT_NOTE,
+        yes: "Link", ask: true
+    });
+    if (!ok) return;
+    try {
+        const { error } = await db.rpc("admin_link_parent", { p_token: cardToken(), p_parent_id: p.id, p_student_id: lpStudent.id });
+        if (error) throw error;
+        toast(displayName(p) + " was linked to " + displayName(lpStudent) + ".");
+        await lpLoad();
+        loadTable(currentTerm, currentPage);
+    } catch (err) {
+        lpMessage(friendlyError(err));
     }
-    return true;
-}
+});
+
+$("lpUnlink").addEventListener("click", async () => {
+    if (!linkedParent || !lpStudent) return;
+    const pName = displayName(linkedParent), sName = displayName(lpStudent);
+    const ok = await confirmAction({
+        title: "Unlink " + pName + " from " + sName + "?",
+        html: "The parent will lose access to this student's wallet, and the student's Pay Later will be turned off.<br><br>" + AUDIT_NOTE,
+        yes: "Unlink", danger: true
+    });
+    if (!ok) return;
+    const btn = $("lpUnlink"); btn.disabled = true;
+    try {
+        const { error } = await db.rpc("admin_unlink_parent", { p_token: cardToken(), p_parent_id: linkedParent.id });
+        if (error) throw error;
+        toast(pName + " was unlinked from " + sName + ".");
+        fPayLater.checked = false;   // unlinking turns Pay Later off
+        await lpLoad();
+        loadTable(currentTerm, currentPage);
+    } catch (err) {
+        lpMessage(friendlyError(err));
+    } finally {
+        btn.disabled = false;
+    }
+});
 
 // ---------- email (strictly @sjc.edu.ph) ----------
 function updatePreview() {
@@ -1308,7 +1334,7 @@ async function unarchiveAccount(s) {
 const pillSlider = $("pillSlider");
 function moveSlider() {
     const b = rolePills.querySelector(".pill.on");
-    if (!b) { pillSlider.style.width = "0px"; return; } // no filter: hide the highlight
+    if (!b) { pillSlider.style.width = "0px"; return; }
     if (!b.offsetWidth) return;
     pillSlider.style.width = b.offsetWidth + "px";
     pillSlider.style.transform = "translateX(" + b.offsetLeft + "px)";
@@ -1377,7 +1403,6 @@ async function validateStep(n) {
         if (!(await checkRfid())) return false;
         if (fRfid.value.trim()) { markRfid("scanned"); rfidHeld = true; }
     }
-    if (n === 3 && !validateGuardians()) return false;
     if (n === 4) {
         if (money(fBalance) === null) { fBalance.classList.add("invalid"); toast("Enter a valid E-wallet balance (0 or more).", true); return false; }
         if (money(fLimit) === null) { fLimit.classList.add("invalid"); toast("Enter a valid daily spending limit (0 or more).", true); return false; }
@@ -1434,12 +1459,8 @@ function openDialog(student = null, startStep = 1) {
         fBalance.value = Number(student.balance || 0).toFixed(2);
         fLimit.value = Number(student.daily_limit || 0).toFixed(2);
         fPayLater.checked = !!student.pay_later_enabled;
-        guardians = Array.isArray(student.guardians) && student.guardians.length
-            ? student.guardians.map((g) => ({ name: g.name || "", method: g.method || "", contact: g.contact || "" }))
-            : [newGuardian()];
         renderSummary(student);
     } else {
-        guardians = [newGuardian()];
         fRole.value = "";
         fBalance.value = "0.00";
         fLimit.value = DEFAULT_DAILY_LIMIT.toFixed(2);
@@ -1447,7 +1468,8 @@ function openDialog(student = null, startStep = 1) {
     }
 
     syncRfidControls();
-    renderGuardians();
+    lpStudent = student && student.role === "student" ? student : null;
+    if (!student || student.role === "student") lpLoad();
     updatePreview();
     step = startStep;
     fRole.dispatchEvent(new Event("change"));
@@ -1498,9 +1520,7 @@ form.addEventListener("submit", async (e) => {
         balance: money(fBalance),
         daily_limit: money(fLimit),
         pay_later_enabled: fPayLater.checked,
-        guardians: fRole.value === "student"
-            ? guardians.map((g) => ({ name: g.name.trim(), method: g.method, contact: g.method === "email" ? g.contact.trim().toLowerCase() : g.contact }))
-            : []
+        ...(editing ? {} : { guardians: [] })   // guardians are replaced by the linked parent account; existing values are left untouched
     };
 
     saveBtn.disabled = true;
@@ -1700,6 +1720,7 @@ paResults.addEventListener("click", async (e) => {
 // 11. START
 // ============================================================
 (async function start() {
+    setRole("student", false);   // opens on Students: highlights the pill and sets the search hint (the table loads below)
     if (!configured) {
         showBanner("Supabase isn't connected yet. Add your project URL and anon key at the top of adminaccountmanagement.js.");
         renderTable([], "Students");

@@ -11,10 +11,11 @@ from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout, 
                                QScrollArea, QSizePolicy, QGridLayout, QMessageBox, QStackedWidget,
                                QGraphicsOpacityEffect)
 
-import config, protocol
+import config, protocol, phone
 from api import Api, ApiError
 from vision import Vision
-from widgets import (PillToggle, ReceiptOverlay, PromptOverlay, ConfirmOverlay, GreetingScreen, MAROON, MAROON_DK, GOLD, GOLD_LT, INK, MUTED, LINE, SOFT)
+from phone import PhoneServer
+from widgets import (PillToggle, ReceiptOverlay, PromptOverlay, ConfirmOverlay, GreetingScreen, PhoneCard, GatePanel, MAROON, MAROON_DK, GOLD, GOLD_LT, INK, MUTED, LINE, SOFT)
 
 SERVER_NAME = "tapmate-kiosk-instance"
 FADE_MS = 700             # welcome -> kiosk cross-fade
@@ -76,6 +77,13 @@ BANNER = {"idle": ("#FBF3D6", "#6B5410"), "busy": ("#F3E8E8", "#6D1A24"),
 NO_PARENT_MSG = ("This student isn't linked to any parent, so the Pay Later feature isn't available "
                  "for this student.\n\nPlease link your student account to a parent account to continue "
                  "using this feature.")
+
+
+def not_activated_msg(parent_name):
+    who = parent_name or "a parent"
+    return (f"This student is linked to {who} but has not activated Pay Later.\n\n"
+            "Please ask your linked parent to activate this feature.")
+
 
 REASONS = {
     "session": "Session expired. Reopen the kiosk from the Register page.",
@@ -191,6 +199,8 @@ class MainWindow(QWidget):
         self.queued, self.flash, self._prev_qty = [], set(), {}
         self.confirming, self.confirm_left, self.tap_through = False, 0, False   # inactivity: 'still there?' prompt state
         self.vision = self.serial = None
+        self.phone_gate = False                              # True = waiting for the phone to connect (camera + tally locked)
+        self.phone, self.phone_hold = None, False          # phone link: server, and 'student is confirming with their PIN'
         self.images = ImageCache(); self.images.loaded.connect(self.render_order)
         self._buf, self._last = "", 0.0
         self.setObjectName("root"); self.setWindowTitle("TapMate Kiosk"); self.resize(1400, 840)
@@ -199,6 +209,8 @@ class MainWindow(QWidget):
         self.idle_timer = QTimer(self); self.idle_timer.setSingleShot(True)
         self.idle_timer.setInterval(int(cfg["idle_seconds"] * 1000)); self.idle_timer.timeout.connect(self.ask_continue)
         self.confirm_tick = QTimer(self); self.confirm_tick.setInterval(1000); self.confirm_tick.timeout.connect(self.tick_confirm)
+        self.hold_timer = QTimer(self); self.hold_timer.setSingleShot(True); self.hold_timer.timeout.connect(self._hold_expired)
+        self.phone_tick = QTimer(self); self.phone_tick.setInterval(500); self.phone_tick.timeout.connect(self._phone_tick)
         self._build()
         self.receipt = ReceiptOverlay(self); self.receipt.closed.connect(self.on_receipt_closed)
         self.prompt = PromptOverlay(self); self.prompt.closed.connect(lambda: setattr(self, "tap_through", False))
@@ -206,6 +218,7 @@ class MainWindow(QWidget):
         QApplication.instance().installEventFilter(self)
         QShortcut(QKeySequence("F11"), self, activated=self.toggle_full)
         self.poll = QTimer(self); self.poll.setInterval(1000); self.poll.timeout.connect(self.poll_order)
+        self.start_phone()
         self.show_boot()
 
     # ---------- UI ----------
@@ -225,8 +238,10 @@ class MainWindow(QWidget):
         if lp2: blogo.setPixmap(QPixmap(lp2).scaledToHeight(84, Qt.SmoothTransformation))
         else: blogo.setText("TAPMATE"); blogo.setObjectName("brand")
         bl.addWidget(blogo); bl.addStretch()
-        sub = QLabel("Place items in the tray in front of the camera. Recognised items are added to the order tally automatically.")
-        sub.setObjectName("muted"); sub.setWordWrap(True)
+        self.sub = sub = QLabel(); sub.setObjectName("muted"); sub.setWordWrap(True)
+        self.sub_ready = "Place items in the tray in front of the camera. Recognised items are added to the order tally automatically."
+        self.sub_gate = "Camera is off. Scan the QR code with your phone to activate the camera and open your order tally."
+        sub.setText(self.sub_ready)
         self.video = QLabel("Camera off"); self.video.setObjectName("video")
         self.video.setAlignment(Qt.AlignCenter); self.video.setMinimumSize(560, 380)
         self.video.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
@@ -248,11 +263,13 @@ class MainWindow(QWidget):
         self.stu_lim = kv("Today's spending limit")
         self.student_box.hide()
 
-        p.addWidget(self.student_box)
+        self.phone_card = PhoneCard(); self.phone_card.hide()
+        p.addWidget(self.student_box); p.addWidget(self.phone_card)
         h = QHBoxLayout(); h2 = QLabel("Order tally"); h2.setObjectName("h2")
         self.count = QLabel("0 items"); self.count.setObjectName("pill")
-        h.addWidget(h2); h.addStretch(); h.addWidget(self.count); p.addLayout(h)
-        note = QLabel("Scanned items stay here until the cashier removes them."); note.setObjectName("muted"); p.addWidget(note)
+        self.tally_box = QWidget(); tb = QVBoxLayout(self.tally_box); tb.setContentsMargins(0, 0, 0, 0); tb.setSpacing(10)
+        h.addWidget(h2); h.addStretch(); h.addWidget(self.count); tb.addLayout(h)
+        note = QLabel("Scanned items stay here until the cashier or the student removes them."); note.setObjectName("muted"); tb.addWidget(note)
         self.lines_host = QWidget(); self.lines = QVBoxLayout(self.lines_host)
         self.lines.setContentsMargins(0, 0, 4, 0); self.lines.setSpacing(8); self.lines.addStretch()
         sc = QScrollArea(); sc.setFocusPolicy(Qt.NoFocus); sc.setWidgetResizable(True); sc.setWidget(self.lines_host)
@@ -267,17 +284,19 @@ class MainWindow(QWidget):
         ev.addWidget(et); ev.addStretch()
         area = QWidget(); ag = QGridLayout(area); ag.setContentsMargins(0, 0, 0, 0)
         ag.addWidget(sc, 0, 0); ag.addWidget(self.empty, 0, 0)                              # stacked in the same cell
-        p.addWidget(area, 1)
+        tb.addWidget(area, 1)
 
         self.pay_toggle = PillToggle(["RFID payment", "Pay Later"]); self.pay_toggle.changed.connect(self.on_pay_toggled)
-        p.addWidget(self.pay_toggle)
+        tb.addWidget(self.pay_toggle)
         self.clear_btn = QPushButton("Clear order"); self.clear_btn.setObjectName("ghost")
-        self.clear_btn.setFocusPolicy(Qt.NoFocus); self.clear_btn.clicked.connect(self.clear_order); p.addWidget(self.clear_btn)
+        self.clear_btn.setFocusPolicy(Qt.NoFocus); self.clear_btn.clicked.connect(self.clear_order); tb.addWidget(self.clear_btn)
         tot = QHBoxLayout(); tl = QLabel("Total"); tl.setObjectName("totalL")
         self.total = QLabel(self.money(0)); self.total.setObjectName("total")
-        tot.addWidget(tl); tot.addStretch(); tot.addWidget(self.total); p.addLayout(tot)
+        tot.addWidget(tl); tot.addStretch(); tot.addWidget(self.total); tb.addLayout(tot)
         self.banner = QLabel(); self.banner.setAlignment(Qt.AlignCenter); self.banner.setWordWrap(True); self.banner.setMinimumHeight(64)
-        p.addWidget(self.banner); self.show_banner("Waiting for the cashier session…", "busy")
+        tb.addWidget(self.banner); self.show_banner("Waiting for the cashier session…", "busy")
+        p.addWidget(self.tally_box, 1)
+        self.gate = GatePanel(); self.gate.hide(); p.addWidget(self.gate, 1)
         root.addWidget(panel)
         self.stack.addWidget(self.main_page)
         self.greet = GreetingScreen(find_logo()); self.stack.addWidget(self.greet); self.stack.setCurrentWidget(self.greet)
@@ -300,9 +319,11 @@ class MainWindow(QWidget):
 
     def idle_banner(self):
         if self.locked or self.paying or self.state != "active": return
+        if self.phone_hold: return self.show_banner("The student is confirming on their phone…", "busy")
         method = "Pay Later" if self.order["payment"] == "paylater" else "RFID"
-        self.show_banner(f"Tap the same RFID card again to pay ({method})" if self.order["items"]
-                         else "Waiting for items to scan…", "idle")
+        how = "Tap the same RFID card again, or confirm on your phone, to pay" if (self.phone and self.phone.connected()) \
+            else "Tap the same RFID card again to pay"
+        self.show_banner(f"{how} ({method})" if self.order["items"] else "Waiting for items to scan…", "idle")
 
     def toggle_full(self):
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
@@ -338,7 +359,7 @@ class MainWindow(QWidget):
             self.serial = SerialReader(r["serial_port"], r["baud"]); self.serial.card.connect(self.on_card); self.serial.start()
 
     def start_camera(self):
-        if self.vision: return
+        if self.vision or self.phone_gate: return
         self.video.clear(); self.video.setText("Camera starting…")
         self.on_ai_status("Starting camera…", False)
         self.vision = Vision(self.cfg); self.vision.known = set(self.label_map)
@@ -361,14 +382,16 @@ class MainWindow(QWidget):
     # ---------- screen flow: greeting -> tap -> welcome -> camera on -> scan -> tap again to pay -> greeting ----------
     def show_boot(self):
         was = self.state
-        self.state = "boot"; self.stop_watch(); self.stop_camera(); self.student = self.session_uid = None; self.student_box.hide()
+        self.state = "boot"; self.stop_watch(); self.stop_camera(); self.phone_close(); self.student = self.session_uid = None; self.student_box.hide()
         self.stack.setCurrentWidget(self.greet)
         self.greet.show_idle(ready=False, replay=(was != "boot"))
         self.greet.set_status("Signing in…")
 
     def go_idle(self):
         was = self.state
-        self.state = "idle"; self.stop_watch(); self.stop_camera(); self.queued = []
+        self.state = "idle"; self.stop_watch(); self.stop_camera(); self.phone_close(); self.queued = []
+        if self.student and self.api.token:                  # tell the server this student is done (it uses this to vet Pay Later on the website)
+            run_async(lambda: self.api.rpc("kiosk_end_student", _timeout=4), lambda r, e: None)
         self.student = self.session_uid = None; self.student_box.hide()
         self.stack.setCurrentWidget(self.greet)
         self.greet.show_idle(ready=True, replay=(was != "boot"))
@@ -396,13 +419,15 @@ class MainWindow(QWidget):
     def enter_active(self):
         if self.state != "welcome" or self.locked: return
         self.state = "active"; self.idle_timer.start()
-        self.last.setText("Waiting for the first item…")
+        self.set_gate(bool(self.phone and self.phone.token and phone.settings(self.cfg).get("required", True)))
+        self.phone_card.setVisible(bool(self.phone and self.phone.token) and not self.phone_gate)
+        self.last.setText("Waiting for your phone…" if self.phone_gate else "Waiting for the first item…")
         self.fade_to(self.main_page); self.idle_banner()
         # start the camera once the fade is nearly done, so loading it can't stutter the animation
         QTimer.singleShot(FADE_MS - 150, lambda: self.start_camera() if self.state == "active" and not self.locked else None)
 
     def lock(self, msg):
-        self.locked = True; self.poll.stop(); self.state = "locked"; self.stop_watch(); self.stop_camera(); self.show_banner(msg, "err")
+        self.locked = True; self.poll.stop(); self.state = "locked"; self.stop_watch(); self.stop_camera(); self.phone_close(); self.show_banner(msg, "err")
         self.stack.setCurrentWidget(self.greet)
         self.greet.show_idle(ready=False, replay=False); self.greet.set_status(msg, True)
 
@@ -424,7 +449,7 @@ class MainWindow(QWidget):
 
     def ask_continue(self):
         if self.state != "active" or self.locked: return
-        if self.paying or self.receipt.isVisible() or self.prompt.isVisible():
+        if self.paying or self.phone_hold or self.receipt.isVisible() or self.prompt.isVisible():
             return self.idle_timer.start()                    # busy right now: look again later
         self.confirming = True; self.confirm_left = int(self.cfg["confirm_seconds"])
         self.confirm.show_confirm(self.confirm_left); self.confirm_tick.start()
@@ -469,7 +494,7 @@ class MainWindow(QWidget):
     def on_detect(self, label):
         if self.locked or self.state != "active" or self.confirming: return
         self.touch()
-        if self.paying: self.queued.append(label); return       # belongs to the next order
+        if self.paying or self.phone_hold: self.queued.append(label); return       # added after the student finishes confirming
         pid = self.label_map.get(norm(label))
         if not pid:
             self.last.setText(f"Detected “{label}” – not linked to any product (set products.yolo_label)."); return
@@ -492,19 +517,37 @@ class MainWindow(QWidget):
         self.pending += 1
         run_async(lambda: self.api.rpc("kiosk_clear_order"), self.after_mutation)
 
-    def parent_linked(self):
-        """Pay Later needs a linked parent. Fails CLOSED: unless the server explicitly says the student has a
-        parent (kiosk_card_info must return `parent_linked: true`), Pay Later is treated as not allowed."""
+    def paylater_state(self):
+        """Returns (state, parent_name). state is one of:
+        'ok'         linked to a parent AND Pay Later is activated
+        'no_parent'  not linked to any parent
+        'not_active' linked, but the parent hasn't activated Pay Later
+        'unknown'    the server didn't say (older kiosk_card_info). The server still checks at payment time.
+        kiosk_card_info should return parent_linked, parent_name and pay_later_enabled."""
         s = self.student or {}
-        return any(bool(s.get(k)) for k in ("parent_linked", "has_parent", "parent_id", "parent_account_id"))
+        name = s.get("parent_name") or s.get("parent_full_name") or ""
+        link_keys = [k for k in ("parent_linked", "has_parent", "parent_id", "parent_account_id") if k in s]
+        if not link_keys:
+            return "unknown", name
+        if not any(bool(s.get(k)) for k in link_keys):
+            return "no_parent", name
+        for k in ("pay_later_enabled", "paylater_enabled", "pay_later_active"):
+            if k in s:
+                return ("ok" if s.get(k) else "not_active"), name
+        return "ok", name
 
-    def show_no_parent(self):
-        self.prompt.show_prompt("Pay Later unavailable", NO_PARENT_MSG)
+    def show_pay_later_block(self, state, name=""):
+        if state == "no_parent":
+            self.prompt.show_prompt("Pay Later unavailable", NO_PARENT_MSG)
+        else:
+            self.prompt.show_prompt("Pay Later not activated", not_activated_msg(name))
 
     def on_pay_toggled(self, idx):
         if self.paying or self.locked: return self.pay_toggle.set_index(0 if self.order["payment"] == "rfid" else 1)
-        if idx == 1 and not self.parent_linked():
-            self.pay_toggle.set_index(0); self.show_no_parent(); return
+        if idx == 1:
+            st, name = self.paylater_state()
+            if st in ("no_parent", "not_active"):
+                self.pay_toggle.set_index(0); self.show_pay_later_block(st, name); return
         m = "paylater" if idx == 1 else "rfid"
         self.pending += 1
         run_async(lambda: self.api.rpc("kiosk_set_payment", p_method=m), self.after_mutation)
@@ -513,6 +556,10 @@ class MainWindow(QWidget):
         self.pending = max(self.pending - 1, 0)
         if err:
             self.show_banner(str(err), "err", 4); return self.apply_order(self.order)
+        if res and res.get("ok") is False and res.get("reason") in ("no_parent", "paylater_off"):
+            st = "no_parent" if res["reason"] == "no_parent" else "not_active"
+            self.show_pay_later_block(st, res.get("parent_name") or self.paylater_state()[1])
+            return self.apply_order(self.order)          # snap the toggle back to what the order really uses
         self.apply_order(res)
 
     # ---------- shared order (website <-> kiosk) ----------
@@ -584,6 +631,155 @@ class MainWindow(QWidget):
         h.addWidget(th); h.addLayout(info, 1); h.addLayout(right)
         return w
 
+    # ---------- phone link: scan the QR, review / remove items, confirm with a PIN ----------
+    def start_phone(self):
+        ps = phone.settings(self.cfg)
+        if not ps["enabled"]: return
+        try:
+            srv = PhoneServer(self.cfg); srv.start()
+        except OSError:
+            self.last.setText(f"⚠ Phone link unavailable: port {ps['port']} is in use. Change phone.port in config.json.")
+            return
+        self.phone = srv
+        srv.hub.request.connect(self.on_phone_request)
+        self.phone_tick.start()
+
+    def phone_open(self):
+        """A student just tapped in: give them a fresh QR code / token."""
+        if not self.phone: return
+        self.phone.new_session(); url = self.phone.url()
+        self.phone_card.set_url(url); self.gate.set_url(url); self.phone_card.set_connected(False)
+
+    def phone_close(self):
+        """Student done (or session ended): the old QR code stops working immediately."""
+        self.phone_release(flush=False)
+        if self.phone: self.phone.revoke()
+        self.phone_card.hide(); self.phone_card.set_connected(False); self.set_gate(False)
+
+    def phone_release(self, flush=True):
+        was, self.phone_hold = self.phone_hold, False
+        self.hold_timer.stop()
+        if was and flush: self.flush_queue(); self.idle_banner()
+
+    def _hold_expired(self):
+        if self.paying: return self.hold_timer.start(5000)      # never drop the hold in the middle of a payment
+        self.phone_release()
+
+    def set_gate(self, on):
+        """on=True: camera off, the order tally is replaced by the QR panel. on=False: normal kiosk."""
+        self.phone_gate = on
+        self.tally_box.setVisible(not on); self.gate.setVisible(on)
+        self.sub.setText(self.sub_gate if on else self.sub_ready)
+        if on and not self.vision:
+            self.video.clear(); self.video.setText("Camera is off\nScan the QR code with your phone to turn it on.")
+
+    def phone_unlock(self):
+        """The student's phone connected: camera on, order tally visible."""
+        self.set_gate(False)
+        self.phone_card.show(); self.last.setText("Waiting for the first item…")
+        self.touch(); self.start_camera(); self.idle_banner()
+
+    def _phone_tick(self):
+        if self.phone_gate and self.state == "active" and not self.confirming and self.phone and self.phone.connected():
+            return self.phone_unlock()
+        if self.phone and self.phone.token and self.state == "active":
+            was = self.phone_card._connected
+            self.phone_card.set_connected(self.phone.connected())
+            if was != self.phone_card._connected and not self.banner_timer.isActive(): self.idle_banner()
+
+    def order_total(self):
+        return sum(self.products[i["product_id"]]["price"] * i["qty"] for i in self.order["items"] if i["product_id"] in self.products)
+
+    def on_phone_request(self, kind, body, reply):
+        """Runs on the UI thread. `reply(code, dict)` may be called now or later (after a network call)."""
+        try:
+            getattr(self, "_ph_" + kind)(body or {}, reply)
+        except Exception as e:
+            reply(500, {"ok": False, "reason": "error", "message": f"Kiosk error: {e}"})
+
+    def _ph_no(self, reply, reason, msg, code=409):
+        reply(code, {"ok": False, "reason": reason, "message": msg}); return False
+
+    def _ph_ready(self, reply):
+        if self.locked or self.state != "active": return self._ph_no(reply, "inactive", "The kiosk isn't taking changes right now.")
+        if self.paying: return self._ph_no(reply, "busy", "A payment is in progress.")
+        if self.confirming: return self._ph_no(reply, "confirming", "Tap your card at the kiosk first to keep this session open.")
+        return True
+
+    def _ph_state(self, body, reply):
+        s, items = self.student or {}, []
+        for it in self.order["items"]:
+            p = self.products.get(it["product_id"])
+            if p: items.append({"pid": it["product_id"], "name": p["name"], "price": p["price"], "qty": it["qty"], "ai": bool(it.get("ai"))})
+        reply(200, {"ok": True, "student": s.get("name", ""), "balance": s.get("balance"), "currency": self.cur, "items": items,
+                    "total": round(self.order_total(), 2), "payment": self.order["payment"], "busy": self.paying,
+                    "hold": self.phone_hold, "active": self.state == "active"})
+
+    def _ph_remove(self, body, reply):
+        if not self._ph_ready(reply): return
+        if self.phone_hold: return self._ph_no(reply, "locked", "Your order is locked while you confirm it.")
+        pid = next((i["product_id"] for i in self.order["items"] if str(i["product_id"]) == str(body.get("pid"))), None)
+        if pid is None: return reply(200, {"ok": True})              # already gone
+        self.touch(); self.change_qty(pid, -99 if body.get("all") else -1)
+        reply(200, {"ok": True})
+
+    def _ph_begin_pin(self, body, reply):
+        if not self._ph_ready(reply): return
+        if not self.order["items"]: return self._ph_no(reply, "empty", "Your order is empty.")
+        if self.order["payment"] == "paylater":
+            st, name = self.paylater_state()
+            if st in ("no_parent", "not_active"):
+                self.pending += 1                                    # same rule as the card tap: fall back to RFID
+                run_async(lambda: self.api.rpc("kiosk_set_payment", p_method="rfid"), self.after_mutation)
+                msg = NO_PARENT_MSG if st == "no_parent" else not_activated_msg(name)
+                return self._ph_no(reply, "paylater", msg.replace("\n\n", " "))
+        self.phone_hold = True; self.hold_timer.start(90_000); self.touch()
+        self.show_banner("The student is confirming on their phone…", "busy")
+        reply(200, {"ok": True, "total": round(self.order_total(), 2)})
+
+    def _ph_cancel_pin(self, body, reply):
+        if not self.paying: self.phone_release()
+        reply(200, {"ok": True})
+
+    def _ph_pay(self, body, reply):
+        if self.locked or self.state != "active": return self._ph_no(reply, "inactive", "The kiosk isn't taking payments right now.")
+        if self.paying: return self._ph_no(reply, "busy", "A payment is already in progress.")
+        if not self.phone_hold: return self._ph_no(reply, "not_started", "Confirmation timed out. Confirm your order again.")
+        pin, n = str(body.get("pin", "")), int(phone.settings(self.cfg)["pin_length"])
+        if not (pin.isdigit() and len(pin) == n): return self._ph_no(reply, "bad_request", f"Enter your {n}-digit PIN.", 400)
+        try: shown = round(float(body.get("expect_total")) * 100)
+        except (TypeError, ValueError): shown = None
+        if not self.order["items"] or shown != round(self.order_total() * 100):
+            self.phone_release()
+            return self._ph_no(reply, "changed", "Your order changed. Review it and confirm again.")
+        uid = self.session_uid
+        self.paying = True; self.show_banner("Checking PIN…", "busy")
+        run_async(lambda: self.api.rpc("kiosk_verify_pin", p_rfid=uid, p_pin=pin), lambda r, e: self.on_pin_checked(uid, r, e, reply))
+
+    def on_pin_checked(self, uid, res, err, reply):
+        if err or not res.get("ok"):
+            self.paying = False
+            if not err and res.get("reason") == "session":
+                reply(200, {"ok": False, "reason": "session", "message": REASONS["session"]}); self.phone_release(flush=False)
+                return self.lock(REASONS["session"])
+            msg = str(err) if err else self.reason_text(res)
+            r = "network" if err else res.get("reason")
+            if r != "bad_pin": self.phone_release()                 # wrong PIN: stay on the PIN screen, order stays frozen
+            else: self.idle_banner()
+            return reply(200, {"ok": False, "reason": r, "message": msg})
+        self.show_banner("Processing payment…", "busy")
+        run_async(lambda: self.api.rpc("kiosk_checkout", p_rfid=uid), lambda r, e: self.on_phone_paid(r, e, reply))
+
+    def on_phone_paid(self, res, err, reply):
+        ok = bool(res and res.get("ok")) and not err
+        self.phone_hold = False; self.hold_timer.stop()
+        self.on_paid(res, err)                                      # the kiosk's own screen: receipt, or the error banner
+        if ok:
+            reply(200, {"ok": True, "total": res["total"], "new_balance": res.get("new_balance"), "method": res.get("method")})
+        else:
+            reply(200, {"ok": False, "reason": (res or {}).get("reason") or "error",
+                        "message": str(err) if err else self.reason_text(res or {})})
+
     # ---------- RFID tap = show the student, then pay ----------
     def eventFilter(self, obj, ev):
         if ev.type() in (QEvent.MouseButtonPress, QEvent.TouchBegin): self.touch()
@@ -630,18 +826,21 @@ class MainWindow(QWidget):
             return self.greet.set_status(msg, True, 8)
         self.student, self.session_uid, self.state = res, uid, "welcome"
         self.greet.show_welcome(*self.welcome_text(res))
-        self.show_student()
+        self.show_student(); self.phone_open()
         QTimer.singleShot(WELCOME_MS, self.enter_active)
 
     def pay(self, uid):
+        if self.phone_hold: return self.show_banner("The student is confirming on their phone.", "busy", 3)
         if uid != self.session_uid:
             return self.show_banner("This card is not the student who started this order.", "err", 3)
         if not self.order["items"]:
             return self.show_banner("The order is empty. Scan items before paying.", "err", 3)
-        if self.order["payment"] == "paylater" and not self.parent_linked():
-            self.pending += 1                                  # switch back to RFID so the cashier isn't stuck
-            run_async(lambda: self.api.rpc("kiosk_set_payment", p_method="rfid"), self.after_mutation)
-            return self.show_no_parent()
+        if self.order["payment"] == "paylater":
+            st, name = self.paylater_state()
+            if st in ("no_parent", "not_active"):
+                self.pending += 1                              # switch back to RFID so the cashier isn't stuck
+                run_async(lambda: self.api.rpc("kiosk_set_payment", p_method="rfid"), self.after_mutation)
+                return self.show_pay_later_block(st, name)
         self.paying = True; self.show_banner("Processing payment…", "busy")
         run_async(lambda: self.api.rpc("kiosk_checkout", p_rfid=uid), self.on_paid)
 
@@ -655,6 +854,15 @@ class MainWindow(QWidget):
         if r == "over_limit": return f"Over today's spending limit. Left today: {self.money(res.get('remaining') or 0)}."
         if r == "out_of_stock": return f"Out of stock: {res.get('name') or 'an item'} ({res.get('stock') or 0} left). Remove it or lower the quantity."
         if r == "paylater_limit": return f"Over the Pay Later limit. Available: {self.money(res.get('available') or 0)}."
+        if r == "bad_pin":
+            n = res.get("attempts_left")
+            return "Wrong PIN. Try again." if n is None else f"Wrong PIN. {n} {'try' if n == 1 else 'tries'} left."
+        if r == "no_pin": return "You haven't set a PIN yet. Set one on the TapMate website first."
+        if r == "pin_locked": return "Too many wrong PINs. PIN entry is locked for a few minutes."
+        if r == "no_parent": return NO_PARENT_MSG.replace("\n\n", " ")
+        if r == "paylater_off":
+            who = res.get("parent_name") or self.paylater_state()[1] or "a parent"
+            return f"Pay Later isn't activated. Ask {who} to activate it."
         return REASONS.get(r, "Payment failed.")
 
     def show_student(self):
@@ -695,6 +903,7 @@ class MainWindow(QWidget):
         self.stop_watch(); self.stop_camera(); self.clear_on_close()
         for t in self._retired: t.wait(2000)
         if self.serial: self.serial.stop()
+        if self.phone: self.phone.stop()
         e.accept()
 
 

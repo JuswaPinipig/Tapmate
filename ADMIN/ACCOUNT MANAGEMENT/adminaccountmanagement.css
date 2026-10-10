@@ -2223,3 +2223,32 @@ th[hidden] {
         margin: 4px 0 0
     }
 }
+
+/* ---- linked parent account (student dialog, step 3) ---- */
+.lp-wrap {
+    padding: 12px 24px 0;
+}
+
+.lp-card {
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.lp-card .hint {
+    margin: 14px 0 0;
+}
+
+.lp-card .field {
+    padding: 0;
+}
+
+.lp-empty {
+    margin: 0 0 14px;
+    line-height: 1.45;
+}
+
+.lp-wrap [hidden] {
+    display: none !important;
+}

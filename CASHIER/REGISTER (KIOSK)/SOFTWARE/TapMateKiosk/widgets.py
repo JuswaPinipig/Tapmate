@@ -442,3 +442,90 @@ class GreetingScreen(QWidget):
         glow = QRadialGradient(QPointF(self.logo.geometry().center()), 420)
         glow.setColorAt(0, QColor(201, 162, 39, 60)); glow.setColorAt(1, QColor(201, 162, 39, 0))
         p.fillRect(self.rect(), glow)
+
+# ---------------------------------------------------------------- phone link card
+class _QR(QWidget):
+    """Draws a QR code with QPainter (no image libraries needed). `segno` only supplies the module matrix."""
+    def __init__(self, size=128):
+        super().__init__(); self.rows = None; self.setFixedSize(size, size)
+
+    def set_text(self, text):
+        self.rows = None
+        if text:
+            try:
+                import segno
+                self.rows = [list(r) for r in segno.make(text, error="m", micro=False).matrix]
+            except Exception:
+                self.rows = None
+        self.update()
+
+    def paintEvent(self, _):
+        p = QPainter(self); p.setRenderHint(QPainter.Antialiasing, False)
+        p.fillRect(self.rect(), QColor("#FFFFFF"))
+        if not self.rows: return
+        n = len(self.rows); quiet = 3
+        cell = max(1, min(self.width(), self.height()) // (n + 2 * quiet))
+        off = (self.width() - cell * n) // 2
+        p.setPen(Qt.NoPen); p.setBrush(QColor("#1A0508"))
+        for y, row in enumerate(self.rows):
+            for x, bit in enumerate(row):
+                if bit: p.drawRect(off + x * cell, off + y * cell, cell, cell)
+
+
+class PhoneCard(QFrame):
+    """'Connect your phone' card in the order panel: QR while waiting, a small 'connected' chip afterwards."""
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("phoneCard")
+        self.setStyleSheet(f"QFrame#phoneCard{{background:#FFFFFF;border:1px solid {LINE};border-left:5px solid {GOLD};border-radius:12px;}}"
+                           f"QFrame#phoneCard QLabel{{background:transparent;color:{INK};}}")
+        h = QHBoxLayout(self); h.setContentsMargins(14, 12, 14, 12); h.setSpacing(14)
+        self.qr = _QR(); h.addWidget(self.qr, 0, Qt.AlignVCenter)
+        col = QVBoxLayout(); col.setSpacing(3)
+        self.title = QLabel(); self.title.setStyleSheet(f"font-size:15px;font-weight:800;color:{MAROON};")
+        self.body = QLabel(); self.body.setWordWrap(True); self.body.setStyleSheet(f"font-size:12px;color:{MUTED};")
+        col.addStretch(); col.addWidget(self.title); col.addWidget(self.body); col.addStretch(); h.addLayout(col, 1)
+        self._connected = None; self.set_connected(False)
+
+    def set_url(self, url):
+        self.qr.set_text(url)
+
+    def set_connected(self, on):
+        if on == self._connected: return
+        self._connected = on
+        self.qr.setVisible(not on)
+        if on:
+            self.title.setText("● Phone connected"); self.title.setStyleSheet("font-size:15px;font-weight:800;color:#1E6B3A;")
+            self.body.setText("Review the order and confirm it with your PIN on your phone.")
+        else:
+            self.title.setText("Use your phone"); self.title.setStyleSheet(f"font-size:15px;font-weight:800;color:{MAROON};")
+            self.body.setText("Scan with your iPhone camera to remove items and pay with your PIN.")
+
+
+class GatePanel(QFrame):
+    """Replaces the order tally until the student's phone connects: big QR code + what to do."""
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("gate")
+        self.setStyleSheet(f"QFrame#gate{{background:#FFFFFF;border:1px solid {LINE};border-radius:18px;}}"
+                           f"QFrame#gate QLabel{{background:transparent;color:{INK};}}")
+        v = QVBoxLayout(self); v.setContentsMargins(22, 24, 22, 20); v.setSpacing(10)
+        self.title = QLabel("Scan to start"); self.title.setAlignment(Qt.AlignCenter)
+        self.title.setStyleSheet(f"font-size:28px;font-weight:800;color:{MAROON};")
+        self.sub = QLabel("Scan this QR code with your phone camera to turn on the kiosk camera and open your order tally.")
+        self.sub.setAlignment(Qt.AlignCenter); self.sub.setWordWrap(True); self.sub.setStyleSheet(f"font-size:14px;color:{MUTED};")
+        self.qr = _QR(280)
+        self.warn = QLabel("QR code can't be drawn: the \"segno\" package is missing.\nRun:  pip install segno"); self.warn.setWordWrap(True)
+        self.warn.setAlignment(Qt.AlignCenter); self.warn.setStyleSheet("font-size:13px;font-weight:700;color:#8E1B1B;"); self.warn.hide()
+        self.url = QLabel(); self.url.setAlignment(Qt.AlignCenter); self.url.setWordWrap(True)
+        self.url.setTextInteractionFlags(Qt.TextSelectableByMouse); self.url.setStyleSheet(f"font-size:11px;color:{MUTED};")
+        self.wait = QLabel("Waiting for your phone…"); self.wait.setAlignment(Qt.AlignCenter)
+        self.wait.setStyleSheet(f"background:#FBF3D6;color:#6B5410;border-radius:12px;padding:8px;font-size:14px;font-weight:700;")
+        v.addWidget(self.title); v.addWidget(self.sub); v.addSpacing(4)
+        v.addWidget(self.qr, 0, Qt.AlignHCenter); v.addWidget(self.warn); v.addWidget(self.url)
+        v.addStretch(1); v.addWidget(self.wait)
+
+    def set_url(self, url):
+        self.qr.set_text(url)
+        self.url.setText(url or "")
+        self.warn.setVisible(bool(url) and not self.qr.rows)

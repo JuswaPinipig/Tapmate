@@ -1121,7 +1121,7 @@ button {
     z-index: 50
 }
 
-.modal.top {
+.modal.on-top {
     z-index: 60
 }
 

@@ -182,8 +182,9 @@
         if (m._ret && m._ret.focus) { try { m._ret.focus(); } catch (_) { } }
     }
     let cfResolve = null;
-    function ask(title, text, yes) {
+    function ask(title, text, yes, noBack) {
         $('cfTitle').textContent = title; $('cfText').textContent = text; $('cfOk').textContent = yes || 'Confirm';
+        $('cfBack').hidden = !!noBack;
         openModal($('confirm'));
         return new Promise(r => { cfResolve = r; });
     }
@@ -393,7 +394,22 @@
     }
     $('clear').onclick = () => { state.order.clear(); renderOrder(); renderGrid(); push(rpc('kiosk_clear_order')); };
     document.querySelectorAll('input[name="pay"]').forEach(r => {
-        r.onchange = () => { state.payment = r.value; push(rpc('kiosk_set_payment', { p_method: r.value })); };
+        r.onchange = async () => {
+            state.payment = r.value;
+            pending++;
+            try {
+                const o = await rpc('kiosk_set_payment', { p_method: r.value });
+                if (o && o.ok === false && (o.reason === 'no_parent' || o.reason === 'paylater_off')) {
+                    // the server refused Pay Later: put the choice back on RFID and say why
+                    state.payment = 'rfid';
+                    document.querySelectorAll('input[name="pay"]').forEach(x => { x.checked = x.value === 'rfid'; });
+                    const who = o.parent_name || 'a parent';
+                    if (o.reason === 'no_parent') ask('Pay Later unavailable', "This student isn't linked to any parent, so Pay Later isn't available for this student. Please link the student account to a parent account to use this feature.", 'OK', true);
+                    else ask('Pay Later not activated', `This student is linked to ${who} but has not activated Pay Later. Please ask the linked parent to activate this feature.`, 'OK', true);
+                } else applyOrder(o);
+            } catch (_) { toast('Could not update the order.'); }
+            finally { pending--; }
+        };
     });
     let polling = false;
     setInterval(async () => {
