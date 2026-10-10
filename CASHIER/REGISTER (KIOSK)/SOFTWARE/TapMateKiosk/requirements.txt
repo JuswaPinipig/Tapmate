@@ -3,3 +3,4 @@ opencv-python>=4.9
 ultralytics>=8.4
 requests>=2.31
 pyserial>=3.5
+segno>=1.6
