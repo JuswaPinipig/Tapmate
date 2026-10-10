@@ -517,15 +517,12 @@ class GatePanel(QFrame):
         self.qr = _QR(280)
         self.warn = QLabel("QR code can't be drawn: the \"segno\" package is missing.\nRun:  pip install segno"); self.warn.setWordWrap(True)
         self.warn.setAlignment(Qt.AlignCenter); self.warn.setStyleSheet("font-size:13px;font-weight:700;color:#8E1B1B;"); self.warn.hide()
-        self.url = QLabel(); self.url.setAlignment(Qt.AlignCenter); self.url.setWordWrap(True)
-        self.url.setTextInteractionFlags(Qt.TextSelectableByMouse); self.url.setStyleSheet(f"font-size:11px;color:{MUTED};")
         self.wait = QLabel("Waiting for your phone…"); self.wait.setAlignment(Qt.AlignCenter)
         self.wait.setStyleSheet(f"background:#FBF3D6;color:#6B5410;border-radius:12px;padding:8px;font-size:14px;font-weight:700;")
         v.addWidget(self.title); v.addWidget(self.sub); v.addSpacing(4)
-        v.addWidget(self.qr, 0, Qt.AlignHCenter); v.addWidget(self.warn); v.addWidget(self.url)
+        v.addWidget(self.qr, 0, Qt.AlignHCenter); v.addWidget(self.warn)
         v.addStretch(1); v.addWidget(self.wait)
 
     def set_url(self, url):
         self.qr.set_text(url)
-        self.url.setText(url or "")
         self.warn.setVisible(bool(url) and not self.qr.rows)

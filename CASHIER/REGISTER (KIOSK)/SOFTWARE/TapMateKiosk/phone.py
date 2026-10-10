@@ -13,10 +13,26 @@ import time
 
 from PySide6.QtCore import QObject, Signal
 
-from phone_page import PAGE, ENDED_PAGE
+import os
+from phone_page import ENDED_PAGE
 
 DEFAULTS = {"enabled": True, "required": True, "host": "", "port": 8765, "pin_length": 4}
 KINDS = {"state", "remove", "begin_pin", "cancel_pin", "pay"}
+
+
+BLANK_PAGE = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+              "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>TapMate</title></head><body></body></html>")
+
+
+def tally_page():
+    """order_tally_PIN.html, read fresh on every request. While it is empty the phone just sees a blank page."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "order_tally_PIN.html")
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except OSError:
+        data = b""
+    return data if data.strip() else BLANK_PAGE.encode()
 
 
 def settings(cfg):
@@ -46,6 +62,7 @@ class PhoneServer:
         self.hub = PhoneHub()
         self.token = None
         self.last_seen = 0.0
+        self.opened = False
         self._httpd = None
 
     # ---- lifecycle ----
@@ -74,8 +91,9 @@ class PhoneServer:
                         return self._send(410, ENDED_PAGE.encode(), "text/html; charset=utf-8")
                     return self._send(410, {"ok": False, "reason": "ended"})
                 if len(parts) == 1 and method == "GET":
-                    return self._send(200, PAGE.replace("__PIN_LEN__", str(int(outer.s["pin_length"]))).encode(),
-                                      "text/html; charset=utf-8")
+                    outer.opened = True                       # the phone scanned the QR and opened the page: that is the connection
+                    outer.last_seen = time.monotonic()
+                    return self._send(200, tally_page(), "text/html; charset=utf-8")
                 kind = parts[1] if len(parts) == 2 else ""
                 if kind not in KINDS or (kind == "state") != (method == "GET"):
                     return self._send(404, {"ok": False, "reason": "not_found"})
@@ -108,18 +126,18 @@ class PhoneServer:
 
     # ---- sessions ----
     def new_session(self):
-        self.token = secrets.token_urlsafe(16); self.last_seen = 0.0
+        self.token = secrets.token_urlsafe(16); self.last_seen = 0.0; self.opened = False
         return self.token
 
     def revoke(self):
-        self.token = None; self.last_seen = 0.0
+        self.token = None; self.last_seen = 0.0; self.opened = False
 
     def url(self):
         host = self.s["host"] or lan_ip()
         return f"http://{host}:{self.s['port']}/{self.token}" if self.token else ""
 
     def connected(self):
-        return self.token is not None and time.monotonic() - self.last_seen < 4
+        return self.token is not None and (self.opened or time.monotonic() - self.last_seen < 4)
 
     # ---- bridge to the UI thread ----
     def ask(self, kind, body):
