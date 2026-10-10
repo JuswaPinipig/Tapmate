@@ -616,3 +616,133 @@ body {
         transition: none;
     }
 }
+
+/* ============================================================
+   PIN input (phone keyboard) + mobile view
+   ============================================================ */
+/* Rendered (so it can take focus) but invisible. 16px stops iOS zooming on focus. */
+.pin-input {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    font-size: 16px;
+    z-index: -1;
+    caret-color: transparent;
+}
+
+/* Only touch devices see the hint; it is also the "keyboard closed" reminder */
+.pin-hint {
+    display: none;
+    margin: -8px 0 0;
+    font-size: .85rem;
+    color: var(--muted);
+}
+
+@media (pointer: coarse) {
+    .pin-hint {
+        display: block;
+    }
+
+    .pin-dots {
+        cursor: pointer;
+        padding: 14px 18px;
+        /* bigger tap target */
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* ---------- Phone layout ---------- */
+@media (max-width: 520px) {
+
+    html,
+    body {
+        height: auto;
+        min-height: 100%;
+    }
+
+    /* height:auto + min-height keeps the logo from being cut off when the keyboard shrinks the screen */
+    body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    }
+
+    .panel {
+        margin-top: 72px;
+        padding: 0 20px 20px;
+        border-radius: 18px;
+    }
+
+    .brand {
+        margin-top: -72px;
+    }
+
+    .brand img {
+        width: 270px;
+    }
+
+    .sub {
+        margin: 4px 0 16px;
+    }
+
+    .sub.welcome {
+        font-size: 1.15rem;
+    }
+
+    .tap {
+        width: 150px;
+        height: 150px;
+        margin-bottom: 18px;
+    }
+
+    .pin-area {
+        min-height: 150px;
+        margin-bottom: 14px;
+        gap: 16px;
+    }
+
+    .pin-dots {
+        gap: 16px;
+    }
+
+    .pin-dots .dot {
+        width: 22px;
+        height: 22px;
+    }
+
+    .email-area {
+        min-height: 0;
+        margin-bottom: 14px;
+    }
+
+    .field input {
+        font-size: 16px;
+        /* no iOS zoom on focus */
+    }
+
+    .btn {
+        height: 52px;
+    }
+}
+
+/* While the phone keyboard is open, give the panel more room */
+.kb .brand img {
+    width: 200px;
+}
+
+.kb .panel {
+    margin-top: 56px;
+}
+
+.kb .brand {
+    margin-top: -56px;
+}
+
+.kb .pin-hint {
+    display: none;
+}

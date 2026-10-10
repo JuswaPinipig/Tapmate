@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>TapMate</title>
 
     <!-- Inter font -->
@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="login.css?v=5">
+    <link rel="stylesheet" href="login.css?v=6">
 </head>
 
 <body>
@@ -23,6 +23,10 @@
 
     <!-- Warm maroon layer over the video -->
     <div class="bg-overlay"></div>
+
+    <!-- Invisible numeric input: it is what makes the phone keyboard open for the PIN -->
+    <input id="pinInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4"
+        autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="PIN" tabindex="-1">
 
     <main class="panel">
         <h1 class="brand">
@@ -44,6 +48,7 @@
                     <div id="pinArea" class="pin-area" hidden>
                         <p class="pin-prompt">Please enter your PIN.</p>
                         <div id="pinDots" class="pin-dots" role="img" aria-label="0 digits entered"></div>
+                        <p class="pin-hint">Tap the dots to open the keypad.</p>
                     </div>
                 </section>
 
@@ -107,7 +112,7 @@
 
     <!-- Supabase client (loads as global `supabase`) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="login.js?v=5"></script>
+    <script src="login.js?v=6"></script>
 </body>
 
 </html>

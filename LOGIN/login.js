@@ -16,7 +16,8 @@ const MAX_GAP_MS = 80;           // USB readers type very fast; slower typing is
 const MIN_LENGTH = 4;            // ignore very short accidental input
 const RESET_AFTER = 3000;        // go back to "waiting" after a successful login
 const NOTICE_RESET_AFTER = 6000; // error boxes stay longer so they can be read
-const PIN_IDLE_MS = 15000;       // PIN screen fades back to "tap your card" after this long untouched
+const IS_TOUCH = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;   // phone / tablet
+const PIN_IDLE_MS = IS_TOUCH ? 30000 : 15000;   // PIN screen fades back to "tap your card" after this long untouched (longer on touch)
 const EMAIL_IDLE_MS = 60000;     // email form fades back to "tap your card" after this long untouched
 const EMAIL_RE = /^[^@\s]+@sjc\.edu\.ph$/i;   // school emails only
 const FADE_MS = 350;             // should match the CSS opacity transition (.35s)
@@ -48,6 +49,7 @@ const noticeEl = document.getElementById("notice");
 const statusEl = document.getElementById("status");
 const pinAreaEl = document.getElementById("pinArea");
 const pinDotsEl = document.getElementById("pinDots");
+const pinInputEl = document.getElementById("pinInput");
 const emailAreaEl = document.getElementById("emailArea");
 const emailInputEl = document.getElementById("emailInput");
 const rfidInputEl = document.getElementById("rfidInput");
@@ -101,7 +103,9 @@ document.addEventListener("keydown", (e) => {
     }
 
     const now = Date.now();
-    const fast = now - lastKeyTime <= MAX_GAP_MS;
+    const onPinInput = e.target === pinInputEl;
+    // A finger can't be a USB reader, so never drop quick taps on a phone's PIN keypad
+    const fast = !(IS_TOUCH && onPinInput) && now - lastKeyTime <= MAX_GAP_MS;
     if (!fast) buffer = "";
     lastKeyTime = now;
 
@@ -121,8 +125,51 @@ document.addEventListener("keydown", (e) => {
     if (e.key.length === 1) {
         buffer += e.key;
         if (state === "pin" && /^\d$/.test(e.key) && !fast) addDigit(e.key);
+        // The PIN is drawn as dots; the real field only holds focus (keeps the phone keyboard open)
+        if (onPinInput) e.preventDefault();
     }
 });
+
+// ------------------------------------------------------------
+// 4-pre. PHONE KEYBOARD
+//    Phones only open the keyboard for a focused input. The PIN screen has
+//    none, so a hidden numeric input (#pinInput) takes focus instead.
+//    Virtual keyboards often send no usable keydown ("Unidentified"), so
+//    digits are also read from the input's own `input` event.
+//    Opening it must happen inside a tap, so it is focused when the
+//    CONTINUE button is pressed, and again when the dots are tapped.
+// ------------------------------------------------------------
+function openPinKeyboard() {
+    try { pinInputEl.focus({ preventScroll: true }); } catch (_) { }
+}
+
+function releasePinKeyboard() {
+    pinInputEl.value = "";
+    if (document.activeElement === pinInputEl) pinInputEl.blur();
+    document.documentElement.classList.remove("kb");
+}
+
+pinInputEl.addEventListener("input", () => {
+    const digits = pinInputEl.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
+    if (state !== "pin") { pinInputEl.value = ""; return; }
+    if (digits.length > pin.length) {
+        for (const d of digits.slice(pin.length)) addDigit(d);      // may submit at 4 digits
+    } else if (digits.length < pin.length) {
+        pin = digits;
+        afterPinChange();
+    }
+    pinInputEl.value = pin;
+});
+
+pinInputEl.addEventListener("focus", () => {
+    if (!IS_TOUCH) return;
+    document.documentElement.classList.add("kb");
+    setTimeout(() => { try { pinAreaEl.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (_) { } }, 300);
+});
+pinInputEl.addEventListener("blur", () => document.documentElement.classList.remove("kb"));
+
+// Tap the dots (or the PIN area) to bring the keyboard back after hiding it
+pinAreaEl.addEventListener("pointerup", () => { if (state === "pin") openPinKeyboard(); });
 
 // ------------------------------------------------------------
 // 4a. LOGIN METHOD: tabs + swipe  (RFID | Manual login)
@@ -259,6 +306,7 @@ async function submitEmail(e) {
     state = "busy";
     clearTimeout(idleTimer);
     emailBtnEl.disabled = true;
+    if (IS_TOUCH) openPinKeyboard();      // still inside the tap, so the phone keeps the keyboard open
 
     let res;
     try {
@@ -269,6 +317,7 @@ async function submitEmail(e) {
         console.error("card_lookup_email failed:", err);
         state = "email";
         emailBtnEl.disabled = false;
+        releasePinKeyboard();
         armEmailIdle();
         return showMessage("Can't reach TapMate right now.", "Check the connection and try again.");
     }
@@ -294,6 +343,7 @@ async function submitEmail(e) {
             // Same message whether the email or the number is wrong, on purpose
             state = "email";
             emailBtnEl.disabled = false;
+            releasePinKeyboard();
             rfidInputEl.value = "";
             emailAreaEl.classList.remove("shake");
             void emailAreaEl.offsetWidth;
@@ -362,6 +412,7 @@ async function submitParent(e) {
     state = "busy";
     clearTimeout(idleTimer);
     parentBtnEl.disabled = true;
+    if (IS_TOUCH) openPinKeyboard();
 
     let res;
     try {
@@ -372,6 +423,7 @@ async function submitParent(e) {
         console.error("parent_login_check failed:", err);
         state = "parent";
         parentBtnEl.disabled = false;
+        releasePinKeyboard();
         armParentIdle();
         return showMessage("Can't reach TapMate right now.", "Check the connection and try again.");
     }
@@ -398,6 +450,7 @@ async function submitParent(e) {
     // Same message whichever of the two is wrong, on purpose
     state = "parent";
     parentBtnEl.disabled = false;
+    releasePinKeyboard();
     parentPwEl.value = "";
     parentAreaEl.classList.remove("shake");
     void parentAreaEl.offsetWidth;
@@ -456,6 +509,7 @@ async function handleScan(uid) {
 function enterPin(name) {
     state = "pin";
     pin = "";
+    pinInputEl.value = "";
     setView("pin", name);
     renderDots();
     armIdle();
@@ -463,6 +517,7 @@ function enterPin(name) {
 
 // Back to "tap your card" (idle timeout or Esc)
 function exitPin() {
+    releasePinKeyboard();
     clearTimeout(idleTimer);
     currentUid = null;
     parentCred = null;
@@ -520,6 +575,7 @@ async function submitPin() {
     } catch (err) {
         console.error((parentCred ? "parent_login" : "card_login") + " failed:", err);
         pin = "";
+        pinInputEl.value = "";
         renderDots();
         state = "pin";
         armIdle();
@@ -531,6 +587,7 @@ async function submitPin() {
     switch (res.reason) {
         case "invalid": {
             pin = "";
+            pinInputEl.value = "";
             renderDots();
             shakeDots();
             state = "pin";
@@ -567,6 +624,7 @@ function lockDots(on) {
 }
 
 function loginSuccess(res) {
+    releasePinKeyboard();
     parentCred = null;
     const profile = res.profile;
 
@@ -626,6 +684,7 @@ function show(tapState, message = "", detail = "", autoReset = true) {
 }
 
 function failWithNotice(text) {
+    releasePinKeyboard();
     clearTimeout(idleTimer);
     currentUid = null;
     pin = "";
@@ -695,6 +754,7 @@ function morph(apply) {
 function focusFor(mode) {
     if (mode === "email") emailInputEl.focus({ preventScroll: true });
     else if (mode === "parent") parentContactEl.focus({ preventScroll: true });
+    else if (mode === "pin") openPinKeyboard();        // desktop: harmless; phone: keeps/reopens the keyboard
 }
 
 function setView(mode, name = "") {
