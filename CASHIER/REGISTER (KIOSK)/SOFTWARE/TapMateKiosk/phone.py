@@ -41,6 +41,38 @@ def tally_file(name):
     return data
 
 
+LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "phone_debug.log")
+
+
+def dbg(msg):
+    """Tiny debug log next to phone.py (tokens are masked). Never raises."""
+    try:
+        if os.path.isfile(LOG_PATH) and os.path.getsize(LOG_PATH) > 200_000:
+            os.remove(LOG_PATH)
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(time.strftime("%H:%M:%S ") + msg + "\n")
+    except Exception:
+        pass
+
+
+class _Server(ThreadingHTTPServer):
+    """On Windows, SO_REUSEADDR lets TWO programs listen on the same port and connections then go to either one
+    (the other may be an old, stuck kiosk). Bind exclusively instead, so a second copy fails loudly."""
+    daemon_threads = True
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+    def handle_error(self, request, client_address):
+        import traceback
+        last = traceback.format_exc().strip().splitlines()[-1]
+        if last.endswith("tls"): return                      # the deliberate close of an https attempt, already logged
+        dbg("ERROR from %s: %s" % (client_address[0], last))
+
+
 def settings(cfg):
     return {**DEFAULTS, **(cfg.get("phone") or {})}
 
@@ -78,6 +110,25 @@ class PhoneServer:
 
         class Handler(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
+            timeout = 20                           # idle / half-open connections (Safari opens several) are dropped after 20 s
+
+            def setup(self):
+                super().setup()
+                # Safari may try https:// first. A TLS hello is not HTTP: close it at once so Safari falls back to
+                # plain http:// right away instead of waiting for an answer that never comes.
+                try:
+                    self.connection.settimeout(2)
+                    first = self.connection.recv(1, socket.MSG_PEEK)
+                    if first == b"\x16":
+                        dbg("HTTPS (TLS) attempt from %s: closed so the browser retries over http" % self.client_address[0])
+                        self.connection.close()
+                        raise ConnectionError("tls")
+                except socket.timeout:
+                    pass                           # idle connection, normal
+                except OSError as e:
+                    if isinstance(e, ConnectionError): raise
+                self.connection.settimeout(self.timeout)
+
             def log_message(self, *a): pass        # never log URLs (they contain the session token)
 
             def _send(self, code, body, ctype="application/json; charset=utf-8", location=None):
@@ -94,6 +145,10 @@ class PhoneServer:
             def _route(self, method):
                 parts = [p for p in self.path.split("?")[0].split("/") if p]
                 tok = outer.token
+                dbg("%s %s from %s" % (method, "/" + "/".join("<token>" if (i == 0 and tok and x == tok) else x
+                                                              for i, x in enumerate(parts)), self.client_address[0]))
+                if parts == ["ping"] and method == "GET":        # test page: http://<kiosk-ip>:8765/ping
+                    return self._send(200, b"TapMate kiosk phone link is reachable.", "text/plain; charset=utf-8")
                 if not parts or not tok or not hmac.compare_digest(parts[0].encode(), tok.encode()):
                     if method == "GET" and len(parts) <= 1:
                         return self._send(410, ENDED_PAGE.encode(), "text/html; charset=utf-8")
@@ -128,8 +183,8 @@ class PhoneServer:
             def do_GET(self): self._route("GET")
             def do_POST(self): self._route("POST")
 
-        self._httpd = ThreadingHTTPServer(("0.0.0.0", int(self.s["port"])), Handler)
-        self._httpd.daemon_threads = True
+        self._httpd = _Server(("0.0.0.0", int(self.s["port"])), Handler)
+        dbg("server listening on port %s (pid %s)" % (self.s["port"], os.getpid()))
         threading.Thread(target=self._httpd.serve_forever, daemon=True).start()
 
     def stop(self):
