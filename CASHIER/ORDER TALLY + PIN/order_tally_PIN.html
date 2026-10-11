@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#6D1A24">
     <title>TapMate</title>
@@ -20,11 +20,30 @@
             <div class="title">
                 <h1>Order tally</h1><span class="pill" id="count">0 items</span>
             </div>
-            <div class="hint">Scanned something by mistake? Remove it here.</div>
+            <div class="hint">Scanned something by mistake? Remove it here. When you're done, tap your RFID card at the
+                kiosk to confirm your payment.</div>
             <div id="list"></div>
         </main>
         <footer><span>Total</span><b id="total">0.00</b></footer>
     </div>
+
+    <!-- PIN entry: slides in over the tally after the second RFID tap -->
+    <div id="pin" aria-hidden="true">
+        <h2>Enter your PIN</h2>
+        <div class="for">to pay <b id="pinTotal"></b></div>
+        <div class="dots" id="dots"></div>
+        <div class="pmsg" id="pinMsg"></div>
+        <div class="pad" id="pad"></div>
+    </div>
+
+    <div class="full" id="paid">
+        <div class="tick">&#10003;</div>
+        <h2>Order paid</h2>
+        <div class="big" id="paidAmt"></div>
+        <p id="paidBal"></p>
+        <p>Your receipt is printing at the kiosk.</p>
+    </div>
+
     <div id="msg">Connecting to the kiosk&hellip;</div>
     <div id="toast"></div>
     <script src="order_tally_PIN.js"></script>

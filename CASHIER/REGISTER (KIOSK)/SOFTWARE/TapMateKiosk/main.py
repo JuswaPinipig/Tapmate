@@ -321,11 +321,11 @@ class MainWindow(QWidget):
 
     def idle_banner(self):
         if self.locked or self.paying or self.state != "active": return
-        if self.phone_hold: return self.show_banner("The student is confirming on their phone…", "busy")
+        if self.phone_hold: return self.show_banner("Enter your PIN on your phone to finalize your payment…", "busy")
+        if self.order["items"] and self.phone and self.phone.connected() and hasattr(self.phone, "set_phase"):
+            return self.show_banner("Tap your RFID to confirm your payment, and confirm your PIN directly through your phone to finalize.", "idle")
         method = "Pay Later" if self.order["payment"] == "paylater" else "RFID"
-        how = "Tap the same RFID card again, or confirm on your phone, to pay" if (self.phone and self.phone.connected()) \
-            else "Tap the same RFID card again to pay"
-        self.show_banner(f"{how} ({method})" if self.order["items"] else "Waiting for items to scan…", "idle")
+        self.show_banner(f"Tap the same RFID card again to pay ({method})" if self.order["items"] else "Waiting for items to scan…", "idle")
 
     def toggle_full(self):
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
@@ -664,6 +664,7 @@ class MainWindow(QWidget):
     def phone_release(self, flush=True):
         was, self.phone_hold = self.phone_hold, False
         self.hold_timer.stop()
+        if was and self.phone and hasattr(self.phone, "set_phase"): self.phone.set_phase("browse")
         if was and flush: self.flush_queue(); self.idle_banner()
 
     def _hold_expired(self):
@@ -769,6 +770,10 @@ class MainWindow(QWidget):
         self.show_banner("The student is confirming on their phone…", "busy")
         reply(200, {"ok": True, "total": round(self.order_total(), 2)})
 
+    def _ph_pin(self, body, reply):
+        """Web mode: the phone typed its PIN. The order was frozen when the card was tapped, so the total is the one it saw."""
+        self._ph_pay({"pin": body.get("pin"), "expect_total": self.order_total()}, reply)
+
     def _ph_cancel_pin(self, body, reply):
         if not self.paying: self.phone_release()
         reply(200, {"ok": True})
@@ -862,7 +867,7 @@ class MainWindow(QWidget):
         QTimer.singleShot(WELCOME_MS, self.enter_active)
 
     def pay(self, uid):
-        if self.phone_hold: return self.show_banner("The student is confirming on their phone.", "busy", 3)
+        if self.phone_hold: return self.show_banner("Enter your PIN on your phone to finalize your payment.", "busy", 3)
         if uid != self.session_uid:
             return self.show_banner("This card is not the student who started this order.", "err", 3)
         if not self.order["items"]:
@@ -873,8 +878,16 @@ class MainWindow(QWidget):
                 self.pending += 1                              # switch back to RFID so the cashier isn't stuck
                 run_async(lambda: self.api.rpc("kiosk_set_payment", p_method="rfid"), self.after_mutation)
                 return self.show_pay_later_block(st, name)
+        if self.phone and self.phone.connected() and hasattr(self.phone, "set_phase"):
+            return self.begin_phone_pin()                  # 2nd tap = confirm; the PIN is typed on the phone
         self.paying = True; self.show_banner("Processing payment…", "busy")
         run_async(lambda: self.api.rpc("kiosk_checkout", p_rfid=uid), self.on_paid)
+
+    def begin_phone_pin(self):
+        """Second RFID tap: freeze the order and tell the phone to switch from the order tally to PIN entry."""
+        self.phone_hold = True; self.hold_timer.start(90_000); self.touch()
+        self.show_banner("Enter your PIN on your phone to finalize your payment…", "busy")
+        self.phone.set_phase("pin", round(self.order_total(), 2), int(phone.settings(self.cfg)["pin_length"]))
 
     def fail(self, msg, secs=6):
         self.paying = False; self.touch(); self.show_banner("✖ " + msg, "err", secs)

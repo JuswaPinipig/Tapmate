@@ -236,57 +236,74 @@
                 <!-- AI receipt check: advisory only, never approves -->
                 <aside id="rvAi" class="rv-ai" data-state="idle" aria-live="polite" hidden>
                     <div class="ai-head">
-                        <span class="ai-dot" aria-hidden="true"></span>
-                        <b>AI verification</b>
+                        <span class="ai-eyebrow">AI verification</span>
                         <button type="button" class="ai-redo" id="aiRedo" hidden>Check again</button>
                     </div>
-                    <p class="ai-msg" id="aiMsg"></p>
+                    <div class="ai-verdict">
+                        <span class="ai-badge" aria-hidden="true"><svg class="ic-ok" viewBox="0 0 24 24">
+                                <path d="M5 12.5l4.5 4.5L19 7.5" />
+                            </svg><svg class="ic-bad" viewBox="0 0 24 24">
+                                <path d="M6 6l12 12M18 6L6 18" />
+                            </svg><svg class="ic-warn" viewBox="0 0 24 24">
+                                <path d="M12 6.5v7M12 17.5h.01" />
+                            </svg><svg class="ic-off" viewBox="0 0 24 24">
+                                <path d="M9.5 9.3a2.6 2.6 0 1 1 3.7 2.4c-.8.4-1.2 1-1.2 1.8M12 17.5h.01" />
+                            </svg><span class="ic-spin"></span></span>
+                        <div class="ai-vtext"><b id="aiTitle"></b><small class="ai-sub" id="aiMsg"></small></div>
+                    </div>
                     <ul class="ai-checks" id="aiChecks" hidden>
+                        <li class="ck-cols" aria-hidden="true">
+                            <span></span><span></span><span>Student</span><span>Receipt</span></li>
                         <li class="ai-check" data-k="ref">
-                            <div class="ck-top"><b>Reference number</b><span class="ck-state"></span></div>
-                            <dl class="ck-vals">
-                                <div>
-                                    <dt>Student typed</dt>
-                                    <dd class="ck-typed"></dd>
-                                </div>
-                                <div>
-                                    <dt>Read from receipt</dt>
-                                    <dd class="ck-seen"></dd>
-                                </div>
-                            </dl>
+                            <span class="ck-ico" aria-hidden="true"><svg class="ic-ok" viewBox="0 0 24 24">
+                                    <path d="M5 12.5l4.5 4.5L19 7.5" />
+                                </svg><svg class="ic-bad" viewBox="0 0 24 24">
+                                    <path d="M6 6l12 12M18 6L6 18" />
+                                </svg><svg class="ic-warn" viewBox="0 0 24 24">
+                                    <path d="M12 6.5v7M12 17.5h.01" />
+                                </svg><svg class="ic-off" viewBox="0 0 24 24">
+                                    <path d="M9.5 9.3a2.6 2.6 0 1 1 3.7 2.4c-.8.4-1.2 1-1.2 1.8M12 17.5h.01" />
+                                </svg><span class="ic-spin"></span></span>
+                            <b class="ck-name">Ref no.</b>
+                            <span class="ck-typed"></span>
+                            <span class="ck-seen"></span>
+                            <span class="ck-state"></span>
                             <small class="ck-note" hidden></small>
                         </li>
                         <li class="ai-check" data-k="amount">
-                            <div class="ck-top"><b>Amount</b><span class="ck-state"></span></div>
-                            <dl class="ck-vals">
-                                <div>
-                                    <dt>Student requested</dt>
-                                    <dd class="ck-typed"></dd>
-                                </div>
-                                <div>
-                                    <dt>Read from receipt</dt>
-                                    <dd class="ck-seen"></dd>
-                                </div>
-                            </dl>
+                            <span class="ck-ico" aria-hidden="true"><svg class="ic-ok" viewBox="0 0 24 24">
+                                    <path d="M5 12.5l4.5 4.5L19 7.5" />
+                                </svg><svg class="ic-bad" viewBox="0 0 24 24">
+                                    <path d="M6 6l12 12M18 6L6 18" />
+                                </svg><svg class="ic-warn" viewBox="0 0 24 24">
+                                    <path d="M12 6.5v7M12 17.5h.01" />
+                                </svg><svg class="ic-off" viewBox="0 0 24 24">
+                                    <path d="M9.5 9.3a2.6 2.6 0 1 1 3.7 2.4c-.8.4-1.2 1-1.2 1.8M12 17.5h.01" />
+                                </svg><span class="ic-spin"></span></span>
+                            <b class="ck-name">Amount</b>
+                            <span class="ck-typed"></span>
+                            <span class="ck-seen"></span>
+                            <span class="ck-state"></span>
                             <small class="ck-note" hidden></small>
                         </li>
                         <li class="ai-check" data-k="date">
-                            <div class="ck-top"><b>Date</b><span class="ck-state"></span></div>
-                            <dl class="ck-vals">
-                                <div>
-                                    <dt>Request submitted</dt>
-                                    <dd class="ck-typed"></dd>
-                                </div>
-                                <div>
-                                    <dt>Read from receipt</dt>
-                                    <dd class="ck-seen"></dd>
-                                </div>
-                            </dl>
+                            <span class="ck-ico" aria-hidden="true"><svg class="ic-ok" viewBox="0 0 24 24">
+                                    <path d="M5 12.5l4.5 4.5L19 7.5" />
+                                </svg><svg class="ic-bad" viewBox="0 0 24 24">
+                                    <path d="M6 6l12 12M18 6L6 18" />
+                                </svg><svg class="ic-warn" viewBox="0 0 24 24">
+                                    <path d="M12 6.5v7M12 17.5h.01" />
+                                </svg><svg class="ic-off" viewBox="0 0 24 24">
+                                    <path d="M9.5 9.3a2.6 2.6 0 1 1 3.7 2.4c-.8.4-1.2 1-1.2 1.8M12 17.5h.01" />
+                                </svg><span class="ic-spin"></span></span>
+                            <b class="ck-name">Date</b>
+                            <span class="ck-typed"></span>
+                            <span class="ck-seen"></span>
+                            <span class="ck-state"></span>
                             <small class="ck-note" hidden></small>
                         </li>
                     </ul>
-                    <small class="ai-note">Advisory only. The AI can misread an image, so approving is always your
-                        decision.</small>
+                    <small class="ai-note">Advisory only. You make the final call.</small>
                 </aside>
             </div>
 

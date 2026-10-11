@@ -739,33 +739,26 @@ reviewDialog.addEventListener("mousedown", (e) => {                     // click
 // ---------- AI receipt check (advisory only) ----------
 // The Edge Function reads the receipt and compares the reference number, amount and date it sees with what the
 // student submitted. Nothing here approves, declines or enables a button. The admin always decides.
-const rvAi = $("rvAi"), aiMsg = $("aiMsg"), aiRedo = $("aiRedo"), aiChecks = $("aiChecks");
+const rvAi = $("rvAi"), aiMsg = $("aiMsg"), aiTitle = $("aiTitle"), aiRedo = $("aiRedo"), aiChecks = $("aiChecks");
 let aiSeq = 0;
 
 const KEYS = ["ref", "amount", "date"];
-const FIELD_NAME = { ref: "reference number", amount: "amount", date: "date" };
+const SHORT_NAME = { ref: "Reference", amount: "Amount", date: "Date" };
 const STATE_LABEL = { match: "Matches", near: "Check closely", mismatch: "Doesn't match", unreadable: "Not readable", loading: "Checking\u2026" };
-const AI_MSG = {
-    match: "The reference number, amount and date all match the receipt. Still look over the image yourself before approving.",
-    unreadable: "I couldn't clearly read this receipt. It may be blurry or not a GCash receipt. Please check it yourself.",
-    error: "The AI check isn't available right now. You can still review the receipt yourself.",
-    noimage: "There's no receipt image for the AI to check.",
-    loading: "Reading the receipt\u2026"
+// [title, one short line under it]
+const AI_VIEW = {
+    match: ["All match", "Reference \u00b7 Amount \u00b7 Date"],
+    unreadable: ["Couldn't read it", "Blurry, or not a GCash receipt"],
+    error: ["AI check unavailable", "Review the receipt yourself"],
+    noimage: ["No receipt image", "Nothing for the AI to check"],
+    loading: ["Reading receipt\u2026", ""]
 };
-
-function joinNames(list) {
-    return list.length < 2 ? list.join("") : list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
-}
-function aiText(state, c) {
+function aiView(state, c) {
     if (c && (state === "mismatch" || state === "near")) {
-        const pick = (test) => KEYS.filter((k) => c[k] && test(c[k].status)).map((k) => FIELD_NAME[k]);
-        if (state === "mismatch") {
-            const n = pick((x) => x === "mismatch");
-            return "The " + joinNames(n) + (n.length > 1 ? " don't" : " doesn't") + " match the receipt. Please check the image yourself before deciding.";
-        }
-        return "Nearly there, but please look closely at the " + joinNames(pick((x) => x !== "match")) + " on the receipt.";
+        const names = KEYS.filter((k) => c[k] && (state === "mismatch" ? c[k].status === "mismatch" : c[k].status !== "match")).map((k) => SHORT_NAME[k]);
+        return [state === "mismatch" ? "Doesn't match" : "Check closely", names.join(" \u00b7 ")];
     }
-    return AI_MSG[state] || AI_MSG.error;
+    return AI_VIEW[state] || AI_VIEW.error;
 }
 
 // dates are compared as Philippine calendar days (same as the Edge Function)
@@ -787,26 +780,28 @@ function paintCheck(k, status, typed, seen, note) {
     n.hidden = !note;
 }
 
-const UNCLEAR = "Part of the image wasn't clear.";
+const UNCLEAR = "Image not clear";
 function paintResults(c) {
     const r = c.ref, a = c.amount, d = c.date;
     paintCheck("ref", r.status, r.typed || "\u2013",
-        r.read && r.read.length ? r.read.join(" / ") : "Not readable",
-        r.status !== "near" ? "" : r.diff > 0 ? r.diff + (r.diff === 1 ? " digit differs." : " digits differ.") : UNCLEAR);
+        r.read && r.read.length ? r.read.join("\n") : "Not readable",
+        r.status !== "near" ? "" : r.diff > 0 ? r.diff + (r.diff === 1 ? " digit differs" : " digits differ") : UNCLEAR);
     paintCheck("amount", a.status, peso.format(a.typed),
         a.read && a.read.length ? a.read.map((x) => peso.format(x)).join(" / ") : "Not readable",
         a.status === "near" ? UNCLEAR : "");
     let dNote = "";
-    if (d.status === "near") dNote = d.days === 1 ? "Receipt is dated the day before the request." : UNCLEAR;
-    else if (d.status === "mismatch") dNote = d.days < 0 ? "Receipt is dated after the request was submitted." : "Receipt is " + d.days + " days older than the request.";
+    if (d.status === "near") dNote = d.days === 1 ? "Receipt is 1 day earlier" : UNCLEAR;
+    else if (d.status === "mismatch") dNote = d.days < 0 ? "Receipt is dated later" : d.days + " days older";
     paintCheck("date", d.status, prettyDay(d.typed),
-        d.read ? prettyDay(d.read) + (d.time ? " \u00b7 " + prettyTime(d.time) : "") : "Not readable", dNote);
+        d.read ? prettyDay(d.read) + (d.time ? "\n" + prettyTime(d.time) : "") : "Not readable", dNote);
 }
 
 function paintAi(state, c) {
     rvAi.hidden = false;
     rvAi.dataset.state = state;
-    aiMsg.textContent = aiText(state, c);
+    const v = aiView(state, c);
+    aiTitle.textContent = v[0];
+    aiMsg.textContent = v[1];
     if (state === "loading" && current) {
         aiChecks.hidden = false;                   // show what is being compared while the AI reads
         paintCheck("ref", "loading", current.reference_no || "\u2013", "Reading\u2026");

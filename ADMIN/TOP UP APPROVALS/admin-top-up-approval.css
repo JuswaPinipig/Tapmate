@@ -2539,31 +2539,178 @@ td.sid {
     max-height: min(560px, 62vh);
 }
 
-/* AI panel */
+/* AI panel (v3: one verdict + one comparison table with check / cross icons) */
+.rv-body .rv-ai {
+    padding: 14px;
+    border-left: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+}
+
+.rv-body .rv-ai[data-state="match"] {
+    background: rgba(31, 111, 91, .06);
+}
+
+.rv-body .rv-ai[data-state="near"],
+.rv-body .rv-ai[data-state="unreadable"] {
+    background: rgba(196, 130, 20, .07);
+}
+
+.rv-body .rv-ai[data-state="mismatch"] {
+    background: rgba(179, 65, 46, .06);
+}
+
 .rv-ai .ai-head {
-    font-size: .95rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-.rv-ai .ai-msg {
-    margin-top: 8px;
+.ai-eyebrow {
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
 }
 
+.ai-verdict {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.ai-badge {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--ai);
+    color: #fff;
+}
+
+.ai-vtext {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+}
+
+.ai-vtext b {
+    font-size: 1.12rem;
+    line-height: 1.2;
+    color: var(--ai);
+}
+
+.rv-ai[data-state="near"] .ai-vtext b,
+.rv-ai[data-state="unreadable"] .ai-vtext b {
+    color: #8a5a0b;
+}
+
+.ai-sub {
+    font-size: .8rem;
+    color: var(--muted);
+}
+
+.ai-sub:empty {
+    display: none;
+}
+
+/* icons: every svg is hidden until the state turns its own one on */
+.ai-badge svg,
+.ck-ico svg {
+    display: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.ai-badge svg {
+    width: 22px;
+    height: 22px;
+}
+
+.ck-ico svg {
+    width: 14px;
+    height: 14px;
+}
+
+.rv-ai[data-state="match"] .ai-badge .ic-ok,
+.rv-ai[data-state="mismatch"] .ai-badge .ic-bad,
+.rv-ai[data-state="near"] .ai-badge .ic-warn,
+.rv-ai[data-state="unreadable"] .ai-badge .ic-off,
+.rv-ai[data-state="error"] .ai-badge .ic-off,
+.rv-ai[data-state="noimage"] .ai-badge .ic-off,
+.ai-check[data-s="match"] .ck-ico .ic-ok,
+.ai-check[data-s="mismatch"] .ck-ico .ic-bad,
+.ai-check[data-s="near"] .ck-ico .ic-warn,
+.ai-check[data-s="unreadable"] .ck-ico .ic-off {
+    display: block;
+}
+
+.ic-spin {
+    display: none;
+    width: 55%;
+    height: 55%;
+    border-radius: 50%;
+    border: 2.5px solid rgba(255, 255, 255, .45);
+    border-top-color: #fff;
+    animation: aiSpin .8s linear infinite;
+}
+
+.rv-ai[data-state="loading"] .ai-badge .ic-spin,
+.ai-check[data-s="loading"] .ck-ico .ic-spin {
+    display: block;
+}
+
+@keyframes aiSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* the comparison table */
 .ai-checks {
     list-style: none;
-    margin: 12px 0 0;
+    margin: 14px 0 0;
     padding: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.ai-checks>li {
+    position: relative;
     display: grid;
-    gap: 10px;
+    grid-template-columns: 22px 64px minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: center;
+    padding: 11px 12px;
+}
+
+.ai-checks>li+li {
+    border-top: 1px solid var(--line);
+}
+
+.ck-cols {
+    padding-block: 7px !important;
+    background: rgba(31, 36, 32, .04);
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
 }
 
 .ai-check {
     --ck: var(--muted);
     --ck-text: var(--muted);
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-left: 4px solid var(--ck);
-    border-radius: 10px;
-    background: #fff;
 }
 
 .ai-check[data-s="match"] {
@@ -2571,67 +2718,74 @@ td.sid {
     --ck-text: var(--ok);
 }
 
-.ai-check[data-s="near"],
-.ai-check[data-s="unreadable"] {
+.ai-check[data-s="near"] {
     --ck: #c48214;
     --ck-text: #8a5a0b;
+    background: rgba(196, 130, 20, .07);
 }
 
 .ai-check[data-s="mismatch"] {
     --ck: var(--err);
-    --ck-text: #7d2616;
+    --ck-text: #9a3220;
+    background: rgba(179, 65, 46, .07);
 }
 
-.ck-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: .86rem;
-}
-
-.ck-state {
-    font-size: .68rem;
-    font-weight: 700;
-    letter-spacing: .05em;
-    text-transform: uppercase;
-    color: var(--ck-text);
-    white-space: nowrap;
-}
-
-.ai-check[data-s="loading"] .ck-state {
-    animation: aiPulse 1s ease-in-out infinite;
-}
-
-.ck-vals {
+.ck-ico {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin: 8px 0 0;
+    place-items: center;
+    background: var(--ck);
+    color: #fff;
 }
 
-.ck-vals dt {
-    font-size: .64rem;
-    letter-spacing: .07em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-weight: 600;
+.ck-name {
+    font-size: .8rem;
 }
 
-.ck-vals dd {
-    margin: 2px 0 0;
-    font-size: .88rem;
+.ck-typed,
+.ck-seen {
+    font-size: .82rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+    white-space: pre-line;
     overflow-wrap: anywhere;
 }
 
+.ai-check[data-s="near"] .ck-seen,
+.ai-check[data-s="mismatch"] .ck-seen {
+    color: var(--ck-text);
+}
+
+.ai-check[data-s="unreadable"] .ck-seen,
+.ai-check[data-s="loading"] .ck-seen {
+    color: var(--muted);
+    font-weight: 500;
+}
+
 .ck-note {
-    display: block;
+    grid-column: 2 / -1;
     margin-top: 6px;
-    font-size: .76rem;
+    font-size: .72rem;
     font-weight: 600;
     color: var(--ck-text);
+}
+
+/* the state word is kept for screen readers only; the icon carries it visually */
+.ck-state {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.rv-ai .ai-note {
+    margin-top: 10px;
+    font-size: .72rem;
 }
 
 /* narrow screens: one column, AI verdict first (it is also what gates the image) */

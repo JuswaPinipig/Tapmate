@@ -1,11 +1,15 @@
-// Order tally on the phone. The student can only REMOVE items here.
-// Talks to Supabase through small functions (see order_tally_PIN.sql); the kiosk sends the order and applies removals.
+// Order tally + PIN entry on the phone.
+//   1. The student can REMOVE items here while the camera scans.
+//   2. When they tap their RFID card at the kiosk again, the kiosk switches this page to PIN entry (phase = "pin").
+//   3. The PIN goes to the kiosk through Supabase; the kiosk checks it, pays, and sends the result back.
+// Needs order_tally_PIN_phase.sql (run once in Supabase) next to the existing kiosk_phone_* functions.
 const SUPABASE_URL = "https://inoafkspgsxzxarzboqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z";
 
 const code = new URLSearchParams(location.search).get("s");
 const $ = (id) => document.getElementById(id);
 let V = null, sig = "", ended = false;
+let mode = "browse", pin = "", sending = false, paid = false, PIN_LEN = 4, shownTotal = 0, submitDoneAt = 0;
 
 async function rpc(name, args) {
     const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + name, {
@@ -19,11 +23,12 @@ async function rpc(name, args) {
 
 function msg(text) { const m = $("msg"); m.textContent = text; m.classList.add("on"); }
 function hideMsg() { $("msg").classList.remove("on"); }
-function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove("on"), 3000); }
-function endSession() { ended = true; msg("This session has ended. Tap your RFID card at the kiosk, then scan the new QR code."); }
+function toast(t, ms = 3000) { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove("on"), ms); }
+function endSession() { if (paid) return; ended = true; $("pin").classList.remove("on"); msg("This session has ended. Tap your RFID card at the kiosk, then scan the new QR code."); }
 
 const money = (v) => ((V && V.currency) || "") + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/* ---------- order tally ---------- */
 function render() {
     if (!V) return;
     const s = JSON.stringify([V.student, V.items, V.total]);
@@ -65,13 +70,94 @@ async function remove(pid, all, row) {
     setTimeout(poll, 600); setTimeout(poll, 1500);   // the kiosk applies it within about a second
 }
 
+/* ---------- polling: the order + which screen the kiosk wants ---------- */
 async function poll() {
-    if (ended) return;
+    if (ended || paid) return;
+    const t0 = Date.now();
     try {
-        const d = await rpc("kiosk_phone_view", { p_code: code });
+        const [d, p] = await Promise.all([
+            rpc("kiosk_phone_view", { p_code: code }),
+            rpc("kiosk_phone_get_phase", { p_code: code }).catch(() => null)   // SQL not installed yet: the tally still works
+        ]);
         if (!d || !d.ok) return endSession();
         V = d; hideMsg(); render();
+        if (p && p.ok) onPhase(p, t0);
     } catch (e) { /* network hiccup: keep the last view, try again */ }
+}
+
+function onPhase(p, t0) {
+    if (sending) {                                    // waiting for the kiosk's answer to the PIN
+        if (p.result && t0 >= submitDoneAt) onResult(p.result);
+        return;
+    }
+    if (p.phase === "pin" && mode === "browse") enterPin(p);
+    else if (p.phase !== "pin" && mode === "pin") leavePin("PIN entry ended. Tap your RFID card at the kiosk to try again.");
+}
+
+/* ---------- PIN entry ---------- */
+function buildPad() {
+    const pad = $("pad"), keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Cancel", "0", "\u232b"];
+    for (const k of keys) {
+        const b = document.createElement("button"); b.textContent = k;
+        if (k === "Cancel") { b.className = "txt"; b.onclick = cancelPin; }
+        else if (k === "\u232b") { b.className = "txt"; b.style.fontSize = "26px"; b.setAttribute("aria-label", "Delete"); b.onclick = () => { if (!sending) { pin = pin.slice(0, -1); drawDots(); } }; }
+        else b.onclick = () => press(k);
+        pad.appendChild(b);
+    }
+}
+function buildDots() { const d = $("dots"); d.textContent = ""; for (let i = 0; i < PIN_LEN; i++) d.appendChild(document.createElement("i")); }
+function drawDots() { [...$("dots").children].forEach((e, i) => e.classList.toggle("f", i < pin.length)); }
+function setMsg(t, info) { const m = $("pinMsg"); m.textContent = t || ""; m.className = "pmsg" + (info ? " info" : ""); }
+function lockPad(on) { document.querySelectorAll("#pad button").forEach(b => b.disabled = on && b.textContent !== "Cancel"); }
+
+function enterPin(p) {
+    mode = "pin"; pin = ""; sending = false;
+    PIN_LEN = Number(p.pin_len) || 4; shownTotal = Number(p.total) || 0;
+    buildDots(); drawDots(); setMsg(""); lockPad(false);
+    $("pinTotal").textContent = money(shownTotal);
+    $("pin").classList.add("on"); $("pin").setAttribute("aria-hidden", "false");   // slides in over the tally
+}
+function leavePin(text) {
+    mode = "browse"; pin = ""; sending = false; lockPad(false); drawDots();
+    $("pin").classList.remove("on"); $("pin").setAttribute("aria-hidden", "true"); sig = "";
+    if (text) toast(text, 5000);
+    poll();
+}
+function press(k) {
+    if (sending || pin.length >= PIN_LEN) return;
+    pin += k; drawDots();
+    if (pin.length === PIN_LEN) submit();
+}
+async function submit() {
+    sending = true; submitDoneAt = Infinity; lockPad(true); setMsg("Checking your PIN\u2026", true);
+    try {
+        const d = await rpc("kiosk_phone_submit_pin", { p_code: code, p_pin: pin });
+        pin = ""; submitDoneAt = Date.now();
+        if (!d || !d.ok) { sending = false; drawDots(); lockPad(false); return leavePin("PIN entry ended. Tap your RFID card at the kiosk to try again."); }
+    } catch (e) {
+        sending = false; pin = ""; drawDots(); lockPad(false);
+        setMsg("Can't reach the server. Try your PIN again.");
+    }
+}
+function onResult(r) {
+    sending = false;
+    if (r.ok) {
+        paid = true; $("pin").classList.remove("on");
+        $("paidAmt").textContent = money(r.total);
+        $("paidBal").textContent = r.method === "paylater" ? "Paid with Pay Later" : (r.new_balance != null ? "New balance " + money(r.new_balance) : "");
+        $("paid").classList.add("on"); return;
+    }
+    if (r.reason === "bad_pin") {
+        pin = ""; drawDots(); lockPad(false);
+        const el = $("dots"); el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake");
+        return setMsg(r.message || "Wrong PIN. Try again.");
+    }
+    leavePin(r.message || "The payment could not be completed.");
+}
+async function cancelPin() {
+    if (sending) return;
+    try { await rpc("kiosk_phone_cancel_pin", { p_code: code }); } catch (e) { /* the kiosk times out on its own */ }
+    leavePin("");
 }
 
 async function start() {
@@ -80,6 +166,7 @@ async function start() {
         const d = await rpc("kiosk_phone_connect", { p_code: code });     // tells the kiosk this phone is here
         if (!d || !d.ok) return endSession();
     } catch (e) { msg("Can't reach the server. Retrying\u2026"); setTimeout(start, 2000); return; }
-    poll(); setInterval(poll, 1000);
+    buildPad(); buildDots();
+    poll(); setInterval(poll, 800);
 }
 start();
