@@ -903,7 +903,12 @@ class MainWindow(QWidget):
         QTimer.singleShot(WELCOME_MS, self.enter_active)
 
     def pay(self, uid):
-        if self.phone_hold: return self.show_banner("Enter your PIN on your phone to finalize your payment.", "busy", 3)
+        if self.phone_hold:
+            # Tapping again while waiting for the PIN: ask the phone to show the PIN screen again (e.g. after the student pressed Cancel
+            # and the kiosk hadn't released the hold yet).
+            if self.phone and hasattr(self.phone, "set_phase") and not self.paying:
+                self.phone.set_phase("pin", round(self.order_total(), 2), int(phone.settings(self.cfg)["pin_length"]))
+            return self.show_banner("Enter your PIN on your phone to finalize your payment.", "busy", 3)
         if uid != self.session_uid:
             return self.show_banner("This card is not the student who started this order.", "err", 3)
         if not self.order["items"]:

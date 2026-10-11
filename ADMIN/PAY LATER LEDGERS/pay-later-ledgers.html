@@ -253,7 +253,32 @@
         </div>
         <div class="dlg-foot">
             <span class="spacer"></span>
+            <button type="button" class="btn primary" id="ldSetLimit" hidden>Set Pay Later limit</button>
             <button type="button" class="btn ghost" id="ldDone">Close</button>
+        </div>
+    </dialog>
+
+    <!-- ================= Set Pay Later funds (limit) ================= -->
+    <dialog id="limitDialog" class="dialog confirm" aria-labelledby="lmTitle">
+        <div class="cf-body">
+            <h3 id="lmTitle">Pay Later funds</h3>
+            <p id="lmInfo"></p>
+            <label class="lm-label" for="lmInput">Pay Later limit</label>
+            <div class="lm-field"><span aria-hidden="true">&#8369;</span>
+                <input id="lmInput" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00">
+            </div>
+            <div class="lm-chips" aria-label="Add to the limit">
+                <button type="button" data-add="100">+&#8369;100</button>
+                <button type="button" data-add="200">+&#8369;200</button>
+                <button type="button" data-add="500">+&#8369;500</button>
+                <button type="button" data-add="1000">+&#8369;1,000</button>
+            </div>
+            <p class="lm-help" id="lmHelp"></p>
+            <p class="lm-err" id="lmErr" hidden></p>
+        </div>
+        <div class="cf-foot">
+            <button type="button" class="btn ghost" id="lmNo">Cancel</button>
+            <button type="button" class="btn primary" id="lmYes">Save limit</button>
         </div>
     </dialog>
 

@@ -242,6 +242,7 @@ class PhoneWeb:
         self._pushed = None                        # the snapshot Supabase already has
         self._phase = ("browse", 0.0, 4)           # what the phone should show: order tally ("browse") or PIN entry ("pin")
         self._phase_pushed = None
+        self._phase_n = 0                          # bumped on every "pin" request so each one is a distinct, new request
         self._pay = ("rfid", "unknown", "")        # payment method + Pay Later eligibility shown on the phone
         self._pay_pushed = None
 
@@ -322,9 +323,10 @@ class PhoneWeb:
         v = (payment, paylater_state, parent_name or "")
         if v != self._pay: self._pay = v; self._wake.set()
 
-    def set_phase(self, phase, total=0, pin_len=4):
+    def set_phase(self, phase, total=0, pin_len=4, force=False):
         """Called by the kiosk (UI thread): 'pin' = the phone switches to PIN entry, 'browse' = back to the order tally."""
-        self._phase = (phase, float(total or 0), int(pin_len)); self._wake.set()
+        if force or phase == "pin": self._phase_n += 1
+        self._phase = (phase, float(total or 0), int(pin_len), self._phase_n); self._wake.set()
 
     def push_state(self, state):
         """Called by the kiosk (UI thread) with the current order: {student, currency, items[], total}."""

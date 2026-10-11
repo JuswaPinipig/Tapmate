@@ -27,6 +27,7 @@ async function requireAdmin() {
 const PAGE_SIZE = 5;
 const PAGE_BUTTONS = 5;
 const DEBOUNCE_MS = 220;
+const MAX_LIMIT = 100000;   // sanity cap for the Pay Later limit (also enforced in the SQL)
 const NOT_LINKED_MSG = "This student is not eligible for a pay later because this student isn't currently linked to a parent.";
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
@@ -217,16 +218,23 @@ function renderTable(list, total, term) {
             ? '<div class="parent-cell"><span class="badge ok">Linked</span><small>' + escapeHtml(s.parent_name || "Parent") + "</small></div>"
             : '<div class="parent-cell"><span class="badge none">Not linked</span></div>';
 
+        const lim = Number(s.pay_later_limit || 0);
+        const owedNow = Number(s.outstanding || 0);
+        const limitReached = s.pay_later_enabled && lim > 0 && owedNow >= lim;
+        const noFunds = s.pay_later_enabled && lim <= 0;
         const payCell = s.parent_linked
-            ? (s.pay_later_enabled ? '<span class="badge ok">Active</span>' : '<span class="badge none">Off</span>')
+            ? (!s.pay_later_enabled ? '<span class="badge none">Off</span>'
+                : limitReached ? '<span class="badge warn">Limit reached</span><span class="sub-t">Can\'t be used until paid or raised</span>'
+                    : noFunds ? '<span class="badge warn">No funds set</span><span class="sub-t">Set a limit to make it usable</span>'
+                        : '<span class="badge ok">Active</span>')
             : '<span class="badge warn">Not eligible</span><p class="not-eligible">' + escapeHtml(NOT_LINKED_MSG) + "</p>";
 
-        const lim = Number(s.pay_later_limit || 0);
         const outstanding = s.parent_linked
-            ? "<b>" + peso.format(Number(s.outstanding || 0)) + "</b>" + (s.pay_later_enabled && lim > 0 ? '<span class="sub-t">of ' + peso.format(lim) + " limit</span>" : "")
+            ? "<b>" + peso.format(Number(s.outstanding || 0)) + "</b>" + (lim > 0 ? '<span class="sub-t">of ' + peso.format(lim) + " limit</span>" : "")
             : "\u2013";
 
         let actions = '<button class="btn ghost small" data-act="view" type="button">View ledger</button>';
+        if (s.parent_linked) actions += '<button class="btn ghost small" data-act="limit" type="button">' + (lim > 0 ? "Edit limit" : "Set limit") + "</button>";
         if (s.parent_linked && s.pay_later_enabled) {   // only the parent can switch it on
             actions += '<button class="btn ghost small" data-act="toggle" type="button">Disable</button>';
         }
@@ -245,7 +253,7 @@ function renderTable(list, total, term) {
 
 function renderPager(total) {
     const pages = Math.ceil(total / PAGE_SIZE);
-    if (pages <= 1) { pagerEl.hidden = true; pagerEl.innerHTML = ""; return; }
+    if (pages < 1) { pagerEl.hidden = true; pagerEl.innerHTML = ""; return; }   // shown for every list, 5 students per page
     const from = (currentPage - 1) * PAGE_SIZE + 1;
     const to = Math.min(total, currentPage * PAGE_SIZE);
     let html = '<span class="info">Showing ' + from + "\u2013" + to + " of " + total + "</span>" +
@@ -312,6 +320,7 @@ rowsEl.addEventListener("click", (e) => {
     const s = currentRows.find((r) => String(r.id) === String(btn.closest("tr").dataset.id));
     if (!s) return;
     if (btn.dataset.act === "view") openLedger(s);
+    else if (btn.dataset.act === "limit") openLimit(s);
     else if (btn.dataset.act === "toggle") togglePayLater(s, btn);
 });
 
@@ -345,8 +354,13 @@ async function togglePayLater(s, btn) {
 const ledgerDialog = $("ledgerDialog");
 const ldRows = $("ldRows");
 let ledgerSeq = 0;
+let ledgerStudent = null;
+const showLedger = () => { if (!ledgerDialog.open) ledgerDialog.showModal(); };
 
 async function openLedger(s) {
+    ledgerStudent = s;
+    $("ldSetLimit").hidden = !s.parent_linked;
+    $("ldSetLimit").textContent = Number(s.pay_later_limit || 0) > 0 ? "Edit Pay Later limit" : "Set Pay Later limit";
     $("ldAvatar").textContent = initials(s.full_name);
     $("ldName").textContent = displayName(s);
     const badge = $("ldBadge");
@@ -363,7 +377,7 @@ async function openLedger(s) {
     if (!s.parent_linked) {
         notice.textContent = NOT_LINKED_MSG;
         notice.hidden = false; body.hidden = true; usage.hidden = true;
-        ledgerDialog.showModal();
+        showLedger();
         return;
     }
 
@@ -381,12 +395,18 @@ async function openLedger(s) {
     $("ldUses").textContent = Number(s.used_count || 0) + " of " + Number(s.max_uses || 0);
     $("ldDue").textContent = owed > 0 ? fmtDate(s.due_at) : "Nothing due";
 
-    if (s.overdue) {
+    if (!s.overdue && s.pay_later_enabled && lim > 0 && owed >= lim) {
+        notice.textContent = "This student reached their Pay Later limit of " + peso.format(lim) + ". Pay Later can't be used until they pay some of it back or you raise the limit.";
+        notice.hidden = false;
+    } else if (s.pay_later_enabled && lim <= 0) {
+        notice.textContent = "No Pay Later funds are set for this student yet, so it can't be used. Set a limit to make it usable.";
+        notice.hidden = false;
+    } else if (s.overdue) {
         notice.textContent = "Payment is overdue. " + peso.format(owed) + " was due " + fmtDate(s.due_at) + ". This student can't use Pay Later until it is settled.";
         notice.hidden = false;
     } else notice.hidden = true;
     body.hidden = false;
-    ledgerDialog.showModal();
+    showLedger();
 
     const seq = ++ledgerSeq;
     try {
@@ -417,6 +437,82 @@ async function openLedger(s) {
         toast(friendlyError(err), true);
     }
 }
+// ============================================================
+// 7b. SET PAY LATER FUNDS (the limit)
+//     The limit is the most a student can owe on Pay Later. Once their unpaid balance reaches it, Pay Later can't be used.
+// ============================================================
+const limitDialog = $("limitDialog"), lmInput = $("lmInput"), lmErr = $("lmErr");
+let limitStudent = null, limitBusy = false;
+
+function lmShowError(msg) { lmErr.textContent = msg; lmErr.hidden = !msg; }
+function lmParse() {
+    const v = lmInput.value.replace(/,/g, "").trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(v)) return NaN;
+    return Number(v);
+}
+
+function openLimit(s) {
+    limitStudent = s;
+    const lim = Number(s.pay_later_limit || 0), owed = Number(s.outstanding || 0);
+    $("lmTitle").textContent = "Pay Later funds for " + displayName(s);
+    $("lmInfo").innerHTML = "Current limit: <b>" + peso.format(lim) + "</b> &nbsp;&bull;&nbsp; Unpaid balance: <b>" + peso.format(owed) + "</b> &nbsp;&bull;&nbsp; Available: <b>" + peso.format(Math.max(lim - owed, 0)) + "</b>";
+    lmInput.value = lim > 0 ? lim.toFixed(2) : "";
+    $("lmHelp").textContent = (s.pay_later_enabled
+        ? ""
+        : "Pay Later is off until this student's linked parent activates it. The limit is saved and applies once they do. ")
+        + "The limit is the most this student can owe. Once their unpaid balance reaches it, Pay Later can't be used until they pay it back or you raise the limit. Maximum " + peso.format(MAX_LIMIT) + ".";
+    lmShowError("");
+    limitDialog.showModal();
+    lmInput.focus(); lmInput.select();
+}
+
+lmInput.addEventListener("input", () => {            // digits, one dot, two decimals
+    let v = lmInput.value.replace(/[^\d.]/g, "");
+    const i = v.indexOf(".");
+    if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, "").slice(0, 2);
+    lmInput.value = v;
+    lmShowError("");
+});
+lmInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveLimit(); } });
+document.querySelectorAll(".lm-chips button").forEach((b) => b.addEventListener("click", () => {
+    const cur = lmParse();
+    const next = Math.min((Number.isNaN(cur) ? 0 : cur) + Number(b.dataset.add), MAX_LIMIT);
+    lmInput.value = next.toFixed(2); lmShowError("");
+}));
+$("lmNo").addEventListener("click", () => limitDialog.close());
+$("lmYes").addEventListener("click", saveLimit);
+$("ldSetLimit").addEventListener("click", () => { if (ledgerStudent) openLimit(ledgerStudent); });
+
+async function saveLimit() {
+    if (limitBusy || !limitStudent) return;
+    const val = lmParse();
+    if (Number.isNaN(val)) return lmShowError("Enter an amount like 500 or 500.00.");
+    if (val > MAX_LIMIT) return lmShowError("The limit can't be more than " + peso.format(MAX_LIMIT) + ".");
+    const s = limitStudent;
+    limitBusy = true; $("lmYes").disabled = true;
+    try {
+        const { data, error } = await db.rpc("admin_set_pay_later_limit", { p_token: cardToken(), p_id: s.id, p_limit: val });
+        if (error) throw error;
+        if (!data || !data.ok) {
+            lmShowError(data && data.reason === "no_parent" ? NOT_LINKED_MSG
+                : data && data.reason === "invalid" ? "Enter an amount between " + peso.format(0) + " and " + peso.format(MAX_LIMIT) + "."
+                    : "Could not save the limit. Please try again.");
+            return;
+        }
+        limitDialog.close();
+        toast("Pay Later limit for " + displayName(s) + " is now " + peso.format(val) + ".");
+        await loadTable(currentTerm, currentPage);
+        if (ledgerDialog.open) {                         // opened from the ledger: refresh it in place
+            const upd = currentRows.find((r) => String(r.id) === String(s.id));
+            if (upd) openLedger(upd);
+        }
+    } catch (err) {
+        lmShowError(friendlyError(err));
+    } finally {
+        limitBusy = false; $("lmYes").disabled = false;
+    }
+}
+
 $("ldClose").addEventListener("click", () => ledgerDialog.close());
 $("ldDone").addEventListener("click", () => ledgerDialog.close());
 

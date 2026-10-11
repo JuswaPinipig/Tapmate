@@ -231,3 +231,89 @@ td.muted {
     display: block;
     margin-top: 3px
 }
+
+/* ===== Set Pay Later funds (limit) dialog ===== */
+#limitDialog {
+    width: min(440px, 94vw);
+}
+
+.lm-label {
+    display: block;
+    margin: 14px 0 6px;
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.lm-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.lm-field:focus-within {
+    border-color: var(--maroon, #7a1428);
+    box-shadow: 0 0 0 3px rgba(122, 20, 40, .12);
+}
+
+.lm-field span {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.lm-field input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.lm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.lm-chips button {
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    font: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+
+.lm-chips button:hover {
+    background: rgba(122, 20, 40, .06);
+    border-color: rgba(122, 20, 40, .35);
+}
+
+.lm-help {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: .85rem;
+    line-height: 1.45;
+}
+
+.lm-err {
+    margin: 10px 0 0;
+    color: var(--err);
+    font-size: .88rem;
+    font-weight: 600;
+}
+
+.lm-err[hidden] {
+    display: none;
+}

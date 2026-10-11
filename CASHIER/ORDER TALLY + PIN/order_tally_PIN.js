@@ -3,7 +3,7 @@
 //   2. When they tap their RFID card at the kiosk again, the kiosk switches this page to PIN entry (phase = "pin").
 //   3. The PIN goes to the kiosk through Supabase; the kiosk checks it, pays, and sends the result back.
 // Needs order_tally_PIN_phase.sql, order_tally_PINv2.sql and order_tally_PINv3.sql (run once each, in that order) next to the
-// existing kiosk_phone_* functions. Assets/tapmate logo.png and Assets/shopping-cart.png sit next to this file.
+// existing kiosk_phone_* functions (plus order_tally_PINv4.sql, which stops a cancelled PIN screen from coming back). Assets/tapmate logo.png and Assets/shopping-cart.png sit next to this file.
 const SUPABASE_URL = "https://inoafkspgsxzxarzboqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z";
 
@@ -11,6 +11,7 @@ const code = new URLSearchParams(location.search).get("s");
 const $ = (id) => document.getElementById(id);
 let V = null, sig = "", ended = false;
 let pay = null, choosing = null;   // pay = {payment, paylater, parent} from the kiosk; choosing = a pick waiting for the kiosk to confirm
+let dismissedReq = null, dismissUntil = 0, pinReq = null;   // Cancel must stick: don't reopen the PIN screen for a request we closed
 let mode = "browse", pin = "", sending = false, paid = false, PIN_LEN = 4, shownTotal = 0, submitDoneAt = 0;
 
 async function rpc(name, args) {
@@ -98,7 +99,8 @@ function onPhase(p, t0) {
         if (p.result && t0 >= submitDoneAt) onResult(p.result);
         return;
     }
-    if (p.phase === "pin" && mode === "browse") enterPin(p);
+    const dismissed = (p.req != null && p.req === dismissedReq) || Date.now() < dismissUntil;
+    if (p.phase === "pin" && mode === "browse" && !dismissed) enterPin(p);
     else if (p.phase !== "pin" && mode === "pin") leavePin("PIN entry ended. Tap your RFID card at the kiosk to try again.");
 }
 
@@ -169,7 +171,7 @@ function setMsg(t, info) { const m = $("pinMsg"); m.textContent = t || ""; m.cla
 function lockPad(on) { document.querySelectorAll("#pad button").forEach(b => b.disabled = on && b.textContent !== "Cancel"); }
 
 function enterPin(p) {
-    mode = "pin"; pin = ""; sending = false;
+    mode = "pin"; pin = ""; sending = false; pinReq = p.req != null ? p.req : null;
     PIN_LEN = Number(p.pin_len) || 4; shownTotal = Number(p.total) || 0;
     buildDots(); drawDots(); setMsg(""); lockPad(false);
     $("pinTotal").textContent = money(shownTotal);
@@ -215,8 +217,9 @@ function onResult(r) {
 }
 async function cancelPin() {
     if (sending) return;
-    try { await rpc("kiosk_phone_cancel_pin", { p_code: code }); } catch (e) { /* the kiosk times out on its own */ }
+    dismissedReq = pinReq; dismissUntil = Date.now() + 3000;      // set BEFORE closing, so the next poll can't reopen it
     leavePin("");
+    try { await rpc("kiosk_phone_cancel_pin", { p_code: code }); } catch (e) { /* the kiosk times out on its own */ }
 }
 
 async function start() {
