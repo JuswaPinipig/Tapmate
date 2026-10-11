@@ -231,13 +231,15 @@ class PhoneWeb:
     def __init__(self, cfg):
         self.s = settings(cfg)
         self.base, self.key = cfg["supabase_url"], cfg["supabase_key"]
-        self.hub = PhoneHub()                      # unused for now (the tally/PIN requests come in the next step)
+        self.hub = PhoneHub()                      # carries the phone's "remove" requests to the UI thread
         self.token = None
         self.last_seen = 0.0
         self.opened = False
         self.opened_at = 0.0
         self._run = False
         self._wake = threading.Event()
+        self._state = None                         # latest order snapshot from the kiosk (set by push_state)
+        self._pushed = None                        # the snapshot Supabase already has
 
     def _rpc(self, name, **args):
         r = requests.post(f"{self.base}/rest/v1/rpc/{name}", timeout=8, json=args,
@@ -257,27 +259,44 @@ class PhoneWeb:
     def _loop(self):
         while self._run:
             code = self.token
-            if code and not self.opened:
-                try:
+            try:
+                if code and not self.opened:
                     d = self._rpc("kiosk_phone_status", p_code=code)
                     if self.token == code and isinstance(d, dict):
                         if not d.get("exists"):
                             self._rpc("kiosk_phone_open", p_code=code); dbg("session registered")
                         elif d.get("connected"):
                             self.opened_at = time.monotonic(); self.opened = True; dbg("phone connected")
-                except Exception as e:
-                    dbg("web link error: %s" % e)
-            self._wake.wait(1.0); self._wake.clear()
+                elif code and self.opened:
+                    st = self._state
+                    sig = json.dumps(st, sort_keys=True) if st else None
+                    if st and sig != self._pushed:                       # send the order only when it changed
+                        self._rpc("kiosk_phone_push", p_code=code, p_student=st.get("student", ""),
+                                  p_currency=st.get("currency", ""), p_items=st.get("items", []), p_total=st.get("total", 0))
+                        if self.token == code: self._pushed = sig
+                    reqs = self._rpc("kiosk_phone_take_removals", p_code=code)
+                    for r in (reqs if isinstance(reqs, list) else []):
+                        if self.token != code: break
+                        dbg("phone asked to remove %s%s" % (r.get("pid"), " (all)" if r.get("all") else ""))
+                        self.hub.request.emit("remove", {"pid": r.get("pid"), "all": bool(r.get("all"))}, lambda *a: None)
+            except Exception as e:
+                dbg("web link error: %s" % e)
+            self._wake.wait(0.7); self._wake.clear()
+
+    def push_state(self, state):
+        """Called by the kiosk (UI thread) with the current order: {student, currency, items[], total}."""
+        self._state = state
 
     # ---- sessions ----
     def new_session(self):
         self.token = secrets.token_urlsafe(16); self.opened = False; self.opened_at = 0.0
+        self._state = None; self._pushed = None
         self._wake.set()                           # register the code right away
         return self.token
 
     def revoke(self):
         code = self.token
-        self.token = None; self.opened = False; self.opened_at = 0.0
+        self.token = None; self.opened = False; self.opened_at = 0.0; self._state = None; self._pushed = None
         if code:
             def close():
                 try: self._rpc("kiosk_phone_close", p_code=code)

@@ -3,29 +3,30 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#6D1A24">
     <title>TapMate</title>
-    <style>
-        html,
-        body {
-            height: 100%;
-            margin: 0
-        }
-
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-            color: #6D1A24;
-            text-align: center;
-            padding: 24px
-        }
-    </style>
+    <link rel="stylesheet" href="order_tally_PIN.css">
 </head>
 
 <body>
-    <div id="status"></div>
+    <div id="app">
+        <header>
+            <div class="brand">TAPMATE</div>
+            <div class="who" id="who">&nbsp;</div>
+        </header>
+        <main>
+            <div class="title">
+                <h1>Order tally</h1><span class="pill" id="count">0 items</span>
+            </div>
+            <div class="hint">Scanned something by mistake? Remove it here.</div>
+            <div id="list"></div>
+        </main>
+        <footer><span>Total</span><b id="total">0.00</b></footer>
+    </div>
+    <div id="msg">Connecting to the kiosk&hellip;</div>
+    <div id="toast"></div>
     <script src="order_tally_PIN.js"></script>
 </body>
 

@@ -239,7 +239,7 @@ class MainWindow(QWidget):
         else: blogo.setText("TAPMATE"); blogo.setObjectName("brand")
         bl.addWidget(blogo); bl.addStretch()
         self.sub = sub = QLabel(); sub.setObjectName("muted"); sub.setWordWrap(True)
-        self.sub_ready = "Place items in the tray in front of the camera. Recognised items are added to the order tally automatically."
+        self.sub_ready = "Place items in the tray in front of the camera. Recognised items are added to your order automatically, and you can review and remove them on your phone."
         self.sub_gate = "Camera is off. Scan the QR code with your phone to activate the camera and open your order tally."
         sub.setText(self.sub_ready)
         self.video = QLabel("Camera off"); self.video.setObjectName("video")
@@ -268,8 +268,9 @@ class MainWindow(QWidget):
         h = QHBoxLayout(); h2 = QLabel("Order tally"); h2.setObjectName("h2")
         self.count = QLabel("0 items"); self.count.setObjectName("pill")
         self.tally_box = QWidget(); tb = QVBoxLayout(self.tally_box); tb.setContentsMargins(0, 0, 0, 0); tb.setSpacing(10)
-        h.addWidget(h2); h.addStretch(); h.addWidget(self.count); tb.addLayout(h)
-        note = QLabel("Scanned items stay here until the cashier or the student removes them."); note.setObjectName("muted"); tb.addWidget(note)
+        self.tally_top = QWidget(); tt = QVBoxLayout(self.tally_top); tt.setContentsMargins(0, 0, 0, 0); tt.setSpacing(10)   # collapses once the phone has the tally
+        h.addWidget(h2); h.addStretch(); h.addWidget(self.count); tt.addLayout(h)
+        note = QLabel("Scanned items stay here until the cashier or the student removes them."); note.setObjectName("muted"); tt.addWidget(note)
         self.lines_host = QWidget(); self.lines = QVBoxLayout(self.lines_host)
         self.lines.setContentsMargins(0, 0, 4, 0); self.lines.setSpacing(8); self.lines.addStretch()
         sc = QScrollArea(); sc.setFocusPolicy(Qt.NoFocus); sc.setWidgetResizable(True); sc.setWidget(self.lines_host)
@@ -284,7 +285,8 @@ class MainWindow(QWidget):
         ev.addWidget(et); ev.addStretch()
         area = QWidget(); ag = QGridLayout(area); ag.setContentsMargins(0, 0, 0, 0)
         ag.addWidget(sc, 0, 0); ag.addWidget(self.empty, 0, 0)                              # stacked in the same cell
-        tb.addWidget(area, 1)
+        tt.addWidget(area, 1)
+        tb.addWidget(self.tally_top, 1)
 
         self.pay_toggle = PillToggle(["RFID payment", "Pay Later"]); self.pay_toggle.changed.connect(self.on_pay_toggled)
         tb.addWidget(self.pay_toggle)
@@ -656,6 +658,7 @@ class MainWindow(QWidget):
         """Student done (or session ended): the old QR code stops working immediately."""
         self.phone_release(flush=False)
         if self.phone: self.phone.revoke()
+        self.tally_top.show()
         self.phone_card.hide(); self.phone_card.set_connected(False); self.set_gate(False)
 
     def phone_release(self, flush=True):
@@ -670,16 +673,34 @@ class MainWindow(QWidget):
     def set_gate(self, on):
         """on=True: camera off, the order tally is replaced by the QR panel. on=False: normal kiosk."""
         self.phone_gate = on
+        if on: self.tally_top.show()
         self.tally_box.setVisible(not on); self.gate.setVisible(on)
         self.sub.setText(self.sub_gate if on else self.sub_ready)
         if on and not self.vision:
             self.video.clear(); self.video.setText("Camera is off\nScan the QR code with your phone to turn it on.")
 
+    def _fade(self, w, a, b, ms, done=None):
+        """Fade a widget's opacity from a to b, then call done()."""
+        eff = QGraphicsOpacityEffect(w); eff.setOpacity(a); w.setGraphicsEffect(eff)
+        an = QPropertyAnimation(eff, b"opacity", self)
+        an.setDuration(ms); an.setStartValue(a); an.setEndValue(b); an.setEasingCurve(QEasingCurve.InOutCubic)
+        def fin():
+            w.setGraphicsEffect(None)
+            if done: done()
+        an.finished.connect(fin); an.start(QPropertyAnimation.DeleteWhenStopped)
+
     def phone_unlock(self):
-        """The student's phone connected: camera on, order tally visible."""
-        self.set_gate(False)
+        """The student's phone connected: camera on. The order tally now lives on the phone (the student can only
+        remove items there), so the kiosk's own tally never shows: the QR panel fades out and the compact panel fades in."""
+        self.phone_gate = False                                      # also stops _phone_tick from unlocking twice
+        self.sub.setText(self.sub_ready)
         self.phone_card.show(); self.last.setText("Waiting for the first item…")
         self.touch(); self.start_camera(); self.idle_banner()
+        self.tally_top.hide()
+        def show_compact():
+            if not (self.phone and self.phone.connected()): return   # the session ended during the fade
+            self.gate.hide(); self.tally_box.show(); self._fade(self.tally_box, 0.0, 1.0, 320)
+        self._fade(self.gate, 1.0, 0.0, 220, show_compact)
 
     def _phone_tick(self):
         if self.phone_gate and self.state == "active" and not self.confirming and self.phone and self.phone.connected():
@@ -688,6 +709,15 @@ class MainWindow(QWidget):
             was = self.phone_card._connected
             self.phone_card.set_connected(self.phone.connected())
             if was != self.phone_card._connected and not self.banner_timer.isActive(): self.idle_banner()
+            if self.phone.connected() and hasattr(self.phone, "push_state"): self.phone.push_state(self.phone_snapshot())
+
+    def phone_snapshot(self):
+        """The order as the phone page shows it (no balance, no PIN: only what the student needs to review)."""
+        items = []
+        for it in self.order["items"]:
+            p = self.products.get(it["product_id"])
+            if p: items.append({"pid": str(it["product_id"]), "name": p["name"], "price": p["price"], "qty": it["qty"], "ai": bool(it.get("ai"))})
+        return {"student": (self.student or {}).get("name", ""), "currency": self.cur, "items": items, "total": round(self.order_total(), 2)}
 
     def order_total(self):
         return sum(self.products[i["product_id"]]["price"] * i["qty"] for i in self.order["items"] if i["product_id"] in self.products)
