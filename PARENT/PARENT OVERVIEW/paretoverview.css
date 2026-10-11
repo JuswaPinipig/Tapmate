@@ -1920,3 +1920,225 @@ li .via {
         padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px))
     }
 }
+
+/* =====================================================================
+   SWIPE BETWEEN THE STUDENT WALLET AND PAY LATER (desktop + phones)
+   Native scroll-snap for touch/trackpad, click-and-drag for the mouse
+   (see parentoverview.js). The slide replaces the Pay Later tile.
+   ===================================================================== */
+.wl {
+    min-width: 0
+}
+
+.wl-track {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    cursor: grab
+}
+
+.wl-track::-webkit-scrollbar {
+    display: none
+}
+
+.wl-track.drag {
+    scroll-snap-type: none;
+    cursor: grabbing;
+    user-select: none
+}
+
+.wl.single .wl-track {
+    cursor: default
+}
+
+.wl-track>.wallet {
+    flex: 0 0 100%;
+    min-width: 0;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    will-change: transform, opacity;
+    transform-origin: center
+}
+
+.pl-slide {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent
+}
+
+.pl-slide:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px
+}
+
+.pl-slide[hidden] {
+    display: none
+}
+
+/* the slide replaces the Pay Later tile */
+.plc {
+    display: none
+}
+
+.wl-dots {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 10px
+}
+
+.wl.single .wl-dots {
+    display: none
+}
+
+.wl-dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    margin: 0 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--gray-soft);
+    cursor: pointer;
+    transition: background .3s ease, transform .3s ease
+}
+
+.wl-dot::after {
+    content: "";
+    position: absolute;
+    inset: -10px -6px
+}
+
+.wl-dot.on {
+    background: var(--maroon);
+    transform: scale(1.25)
+}
+
+/* ---- phone fit (colors and design unchanged) ---- */
+@media (max-width: 760px) {
+    main {
+        padding-top: 18px
+    }
+
+    .hello {
+        margin-bottom: 16px
+    }
+
+    .hello h1 {
+        font-size: 24px;
+        line-height: 1.2
+    }
+
+    .grid {
+        gap: 16px
+    }
+
+    .side-col {
+        gap: 16px
+    }
+
+    .wallet {
+        padding: 22px 20px
+    }
+
+    .limit-row {
+        flex-wrap: wrap;
+        gap: 2px 12px
+    }
+
+    .limit-row b {
+        text-align: right;
+        margin-left: auto
+    }
+
+    .card {
+        padding: 18px
+    }
+
+    .stu-t {
+        min-width: 0
+    }
+
+    .stu-t strong,
+    .stu-t .sub {
+        overflow-wrap: anywhere
+    }
+
+    .tx-head {
+        gap: 12px
+    }
+
+    li {
+        padding: 12px 0;
+        gap: 2px 12px
+    }
+
+    li>* {
+        min-width: 0;
+        overflow-wrap: anywhere
+    }
+
+    .empty-card .btn-fill {
+        width: 100%;
+        min-height: 46px
+    }
+
+    .modal {
+        padding: 16px 12px calc(16px + env(safe-area-inset-bottom, 0px))
+    }
+
+    .toast {
+        max-width: calc(100% - 32px);
+        text-align: center
+    }
+
+    .lk-check {
+        padding: 6px 0
+    }
+}
+
+@media (max-width: 520px) {
+    .wallet .num {
+        font-size: 40px
+    }
+
+    .wallet .num small {
+        font-size: 20px
+    }
+}
+
+@media (max-width: 360px) {
+    main {
+        padding-left: 12px;
+        padding-right: 12px
+    }
+
+    .wallet {
+        padding: 20px 16px
+    }
+
+    .wallet .num {
+        font-size: 34px
+    }
+
+    .hello h1 {
+        font-size: 22px
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wl-dot {
+        transition: none
+    }
+
+    .wl-track>.wallet {
+        transform: none !important;
+        opacity: 1 !important
+    }
+}

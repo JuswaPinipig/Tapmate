@@ -73,8 +73,9 @@
     }
     window.addEventListener("hashchange", route);
     route();
+    var LINK_DEFAULT = { PARENT_HISTORY_URL: "../PARENT HISTORY/parent_history.html", PARENT_TOPUP_URL: "../PARENT TOP-UP/parent-top-up.html" };
     document.querySelectorAll("[data-link]").forEach(function (a) {
-        var url = cfg[a.dataset.link];
+        var url = cfg[a.dataset.link] || LINK_DEFAULT[a.dataset.link];
         if (url) a.setAttribute("href", url);
         else a.addEventListener("click", function (e) { e.preventDefault(); toast("This page isn't linked yet. Set " + a.dataset.link + " in config.js."); });
     });
@@ -232,7 +233,7 @@
     function renderPayLater(pl) {
         state.pl = pl || null;
         var card = $("pl-open");
-        if (!pl) { card.hidden = true; return; }   // database not updated yet
+        if (!pl) { card.hidden = true; renderPlSlide(null); return; }   // database not updated yet
         card.hidden = false;
         var first = (state.student && state.student.first_name) || "Your child";
         var on = pl.enabled && !pl.overdue, req = !!pl.activation_pending && !on;
@@ -252,7 +253,98 @@
         else if (req) { go.disabled = plBusy; go.textContent = plBusy ? "Activating…" : "Activate Pay Later"; }
         else { go.disabled = true; go.textContent = "This student hasn't requested for an activation yet."; }
         setErr($("plm-msg"), pl.overdue ? "Pay Later is unavailable until the student's unpaid Pay Later funds (" + money(pl.outstanding) + ") are settled." : "");
+        renderPlSlide(pl);
     }
+    function renderPlSlide(pl) {
+        var s = $("plslide");
+        if (!pl) { s.hidden = true; wlSync(); return; }
+        s.hidden = false;
+        var first = (state.student && state.student.first_name) || "Your child";
+        var on = pl.enabled && !pl.overdue, req = !!pl.activation_pending && !on;
+        var limit = Number(pl.limit) || 0, out = Number(pl.outstanding) || 0;
+        var pct = on && limit > 0 ? Math.min(100, out / limit * 100) : 0;
+        $("pls-label").textContent = "Pay Later available";
+        $("pls-avail").textContent = peso(on ? pl.available : 0);
+        $("pls-state").textContent = pl.overdue ? "Overdue" : on ? "Active" : req ? "Request waiting" : "Not active";
+        $("pls-text").textContent = on ? money(out) + " of " + money(limit) : "–";
+        $("pls-fill").style.width = pct + "%";
+        $("pls-bar").className = "bar" + (pct >= 100 ? " full" : pct >= 80 ? " warn" : "");
+        $("pls-sub").textContent = pl.overdue ? "Overdue. Settle " + money(out) + " to use Pay Later again."
+            : on ? (out > 0 && pl.due_at ? "Due " + when(pl.due_at) : "Nothing owed right now")
+                : req ? first + " asked you to activate Pay Later" : "Pay Later isn't active yet";
+        wlSync();
+    }
+    $("plslide").onclick = function () { if (state.pl && !wlMoved) openModal(plEl); };
+    $("plslide").addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && state.pl) { e.preventDefault(); openModal(plEl); } });
+
+    /* ---------- swipe between the student wallet and Pay Later (phones) ---------- */
+    var wl = { i: 0, n: 1, w: 0, raf: 0 };
+    var wlEl = $("wl"), wlTrack = $("wl-track"), wlSlides = [wlTrack.children[0], $("plslide")];
+    var wlDots = Array.prototype.slice.call($("wl-dots").children);
+    var wlReduce = window.matchMedia("(prefers-reduced-motion:reduce)");
+    function wlPitch() {
+        return wlSlides[1].hidden ? (wlTrack.clientWidth || 1) : (wlSlides[1].offsetLeft - wlSlides[0].offsetLeft) || 1;
+    }
+    function wlPaint() {
+        wl.raf = 0;
+        var p = Math.max(0, Math.min(wl.n - 1, wlTrack.scrollLeft / wlPitch()));
+        wlSlides.forEach(function (s, k) {
+            if (s.hidden) return;
+            if (wlReduce.matches || wl.n < 2) { s.style.transform = ""; s.style.opacity = ""; return; }
+            var d = Math.min(1, Math.abs(k - p));
+            s.style.transform = "scale(" + (1 - .05 * d).toFixed(4) + ")";
+            s.style.opacity = (1 - .4 * d).toFixed(3);
+        });
+        var idx = Math.round(p);
+        if (idx !== wl.i) { wl.i = idx; wlDots.forEach(function (d, k) { d.classList.toggle("on", k === idx); }); }
+    }
+    function wlQueue() { if (!wl.raf) wl.raf = requestAnimationFrame(wlPaint); }
+    function wlGo(i, instant) {
+        i = Math.max(0, Math.min(wl.n - 1, i));
+        wlTrack.scrollTo({ left: i * wlPitch(), behavior: instant || wlReduce.matches ? "auto" : "smooth" });
+    }
+    function wlSync() {
+        var n = wlSlides[1].hidden ? 1 : 2, w = wlTrack.clientWidth;
+        wlEl.classList.toggle("single", n < 2);
+        if (n !== wl.n || (w && w !== wl.w)) {   // only re-align when the layout changed, so the 15 s refresh never fights a swipe
+            wl.n = n; wl.w = w; wl.i = Math.min(wl.i, n - 1);
+            wlTrack.scrollLeft = wl.i * wlPitch();
+            wlDots.forEach(function (d, k) { d.classList.toggle("on", k === wl.i); });
+        }
+        wlQueue();
+    }
+    wlTrack.addEventListener("scroll", wlQueue, { passive: true });
+    window.addEventListener("resize", wlSync);
+    wlDots.forEach(function (d, k) { d.onclick = function () { wlGo(k); }; });
+
+    /* mouse drag (touch and trackpads already swipe natively) */
+    var wlDrag = null, wlMoved = false;
+    wlTrack.addEventListener("pointerdown", function (e) {
+        if (e.pointerType !== "mouse" || e.button !== 0 || wl.n < 2) return;
+        wlDrag = { x: e.clientX, s: wlTrack.scrollLeft, from: wl.i, on: false };
+    });
+    window.addEventListener("pointermove", function (e) {
+        if (!wlDrag) return;
+        var dx = e.clientX - wlDrag.x;
+        if (!wlDrag.on && Math.abs(dx) > 5) { wlDrag.on = true; wlTrack.classList.add("drag"); }
+        if (wlDrag.on) wlTrack.scrollLeft = wlDrag.s - dx;
+    });
+    function wlRelease(e) {
+        var d = wlDrag; if (!d) return; wlDrag = null;
+        if (!d.on) return;
+        var dx = e.clientX - d.x;
+        wlMoved = true; setTimeout(function () { wlMoved = false; }, 0);   // a drag must not count as a tap on the card
+        wlTrack.classList.remove("drag");
+        wlGo(d.from + (dx < -50 ? 1 : dx > 50 ? -1 : 0));
+    }
+    window.addEventListener("pointerup", wlRelease);
+    window.addEventListener("pointercancel", wlRelease);
+    wlTrack.addEventListener("dragstart", function (e) { e.preventDefault(); });
+    wlTrack.addEventListener("keydown", function (e) {
+        if (e.target !== wlTrack && e.target !== $("plslide")) return;
+        if (e.key === "ArrowRight") { wlGo(wl.i + 1); e.preventDefault(); }
+        else if (e.key === "ArrowLeft") { wlGo(wl.i - 1); e.preventDefault(); }
+    });
     $("pl-open").onclick = function () { if (state.pl) openModal(plEl); };
     plEl.addEventListener("mousedown", function (e) { if (e.target === plEl) closeModal(plEl); });
     plEl.querySelector("[data-close]").onclick = function () { closeModal(plEl); };

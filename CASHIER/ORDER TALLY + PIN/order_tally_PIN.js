@@ -7,6 +7,10 @@
 const SUPABASE_URL = "https://inoafkspgsxzxarzboqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z";
 
+// After "Order paid" the phone goes back to the student's wallet page (path from THIS page: CASHIER/ORDER TALLY + PIN/).
+const WALLET_URL = new URL("../../STUDENT/STUDENT WALLET/studentwallet.html", location.href).href;
+const PAID_SCREEN_MS = 4000;   // how long "Order paid" stays on screen before redirecting
+
 const code = new URLSearchParams(location.search).get("s");
 const $ = (id) => document.getElementById(id);
 let V = null, sig = "", ended = false;
@@ -206,7 +210,9 @@ function onResult(r) {
         paid = true; $("pin").classList.remove("on");
         $("paidAmt").textContent = money(r.total);
         $("paidBal").textContent = r.method === "paylater" ? "Paid with Pay Later" : (r.new_balance != null ? "New balance " + money(r.new_balance) : "");
-        $("paid").classList.add("on"); return;
+        $("paid").classList.add("on");
+        setTimeout(() => { location.replace(WALLET_URL); }, PAID_SCREEN_MS);   // back to the student's wallet
+        return;
     }
     if (r.reason === "bad_pin") {
         pin = ""; drawDots(); lockPad(false);

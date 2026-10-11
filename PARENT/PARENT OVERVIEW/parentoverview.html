@@ -79,23 +79,52 @@
                     </section>
 
                     <div class="grid" id="st-view" hidden>
-                        <section class="wallet" aria-label="Student wallet balance">
-                            <div class="wallet-top">
-                                <div>
-                                    <div class="lbl-s" id="wal-label">Wallet balance</div>
-                                    <div class="num"><small>₱</small><span id="bal">–</span></div>
-                                </div>
+                        <div class="wl" id="wl">
+                            <div class="wl-track" id="wl-track" aria-roledescription="carousel"
+                                aria-label="Student wallet and Pay Later. Swipe to switch.">
+                                <section class="wallet" aria-label="Student wallet balance">
+                                    <div class="wallet-top">
+                                        <div>
+                                            <div class="lbl-s" id="wal-label">Wallet balance</div>
+                                            <div class="num"><small>₱</small><span id="bal">–</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="cardno lbl-s">Student <b id="st-name">–</b></div>
+                                    <div class="limit">
+                                        <div class="limit-row"><span id="lim-label">Daily limit</span><b
+                                                id="lim-text">–</b>
+                                        </div>
+                                        <div class="bar" id="lim-bar" role="progressbar" aria-label="Spent today"
+                                            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i
+                                                id="lim-fill"></i></div>
+                                        <div class="lbl-s" id="lim-sub"></div>
+                                    </div>
+                                    <div class="lbl-s upd" id="bal-updated"></div>
+                                </section>
+
+                                <!-- Pay Later slide: phones only. On desktop this stays hidden and the Pay Later tile below is used. -->
+                                <section class="wallet pl-slide" id="plslide" role="button" tabindex="0"
+                                    aria-haspopup="dialog" aria-label="Pay Later" hidden>
+                                    <div class="wallet-top">
+                                        <div>
+                                            <div class="lbl-s" id="pls-label">Pay Later available</div>
+                                            <div class="num"><small>₱</small><span id="pls-avail">–</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="cardno lbl-s">Status <b id="pls-state">–</b></div>
+                                    <div class="limit">
+                                        <div class="limit-row"><span>Used</span><b id="pls-text">–</b></div>
+                                        <div class="bar" id="pls-bar"><i id="pls-fill"></i></div>
+                                        <div class="lbl-s" id="pls-sub"></div>
+                                    </div>
+                                    <div class="lbl-s upd">Tap for details</div>
+                                </section>
                             </div>
-                            <div class="cardno lbl-s">Student <b id="st-name">–</b></div>
-                            <div class="limit">
-                                <div class="limit-row"><span id="lim-label">Daily limit</span><b id="lim-text">–</b>
-                                </div>
-                                <div class="bar" id="lim-bar" role="progressbar" aria-label="Spent today"
-                                    aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="lim-fill"></i></div>
-                                <div class="lbl-s" id="lim-sub"></div>
+                            <div class="wl-dots" id="wl-dots">
+                                <button type="button" class="wl-dot on" aria-label="Student wallet"></button>
+                                <button type="button" class="wl-dot" aria-label="Pay Later"></button>
                             </div>
-                            <div class="lbl-s upd" id="bal-updated"></div>
-                        </section>
+                        </div>
 
                         <div class="side-col">
                             <section class="card rfid-card" aria-label="Linked student">
