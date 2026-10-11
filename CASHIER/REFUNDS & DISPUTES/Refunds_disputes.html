@@ -220,13 +220,20 @@
                     </svg>
                 </button>
             </div>
+            <!-- AI verdict: the first thing the cashier sees -->
+            <section class="rv-verdict none" id="rvAi" aria-live="polite"></section>
+            <!-- Shown while the AI checks the photo; the request opens only after this finishes -->
+            <div class="rv-check" id="rvCheck" role="status">
+                <span class="rv-spin" aria-hidden="true"></span>
+                <b>Checking the photo…</b>
+                <small>Comparing it with the kiosk items. This takes a few seconds.</small>
+            </div>
             <div class="rv-grid">
                 <div class="rv-left">
                     <figure class="rv-photo loading" id="rvPhoto">
                         <img id="rvImg" alt="Photo uploaded by the student" title="Click to open full size">
                         <figcaption class="rv-ph-msg">Photo could not be loaded.</figcaption>
                     </figure>
-                    <section class="rv-ai" id="rvAi" aria-live="polite"></section>
                 </div>
                 <div class="rv-right">
                     <dl class="rv-meta" id="rvMeta"></dl>

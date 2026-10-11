@@ -314,7 +314,8 @@
     /* A student's refund request, shown in the same table layout */
     function reqRow(r) {
         const lines = itemsOf(r).map(i => el('div', { className: 'it' }, el('span', { textContent: `${i.name} ×${i.qty}` })));
-        const sim = r.ai_similarity ? el('span', { className: 'sim ' + String(r.ai_similarity).toLowerCase(), textContent: `AI photo match: ${r.ai_similarity}` }) : null;
+        const vk = r.ai_similarity ? verdictOf({ visual_similarity: r.ai_similarity }) : null;
+        const sim = vk ? el('span', { className: 'sim ' + ({ ok: 'high', bad: 'low', unsure: 'medium' })[vk], textContent: V[vk].chip }) : null;
         const b = el('button', { className: 'btn-fill', type: 'button', textContent: r.status === 'pending' ? 'Review' : 'View' });
         b.setAttribute('aria-label', `Review refund request ${r.reference}`);
         b.onclick = () => openReview(r, b);
@@ -612,26 +613,47 @@
     /* ---------- Review a student's refund request: photo, reason, statement + AI visual assessment ---------- */
     const rvm = $('reviewModal');
     let rvReq = null, rvBusy = false, rvSeq = 0;
-    const AI_LABEL = { High: 'high', Medium: 'medium', Low: 'low', Unclear: 'unclear' };
+    /* How the AI result looks: a big check, X or ? the cashier can read at a glance */
+    const V = {
+        ok: { title: 'Photo matches the items', chip: '✓ Photo matches', icon: '<path d="M5 12.5l4.5 4.5L19 7.5"/>' },
+        bad: { title: "Photo doesn't match", chip: "✗ Doesn't match", icon: '<path d="M6 6l12 12M18 6L6 18"/>' },
+        unsure: { title: "Can't be sure", chip: '? Check the photo', icon: '<path d="M9.2 9.2a2.9 2.9 0 1 1 4 2.7c-.8.4-1.2 1-1.2 1.9"/><path d="M12 17.4h.01"/>' }
+    };
+    // Works for a full assessment and for the short {visual_similarity} the Requests list has
+    function verdictOf(a) {
+        const v = String(a.verdict || '').toLowerCase();
+        if (v === 'match') return 'ok'; if (v === 'mismatch') return 'bad'; if (v === 'unclear') return 'unsure';
+        const s = String(a.visual_similarity || '').toLowerCase();
+        return s === 'high' ? 'ok' : s === 'low' ? 'bad' : 'unsure';
+    }
+    const vIcon = inner => { const s = el('span', { className: 'v-ico' }); s.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`; return s; };
 
     function paintAi(a, mode, msg) {
-        const host = $('rvAi'), head = el('h4', { textContent: 'AI visual assessment' });
-        if (mode === 'loading') return host.replaceChildren(head, el('p', { className: 'ai-wait', textContent: 'Analyzing the photo against the kiosk products…' }));
-        if (mode === 'error') {
-            const b = el('button', { type: 'button', className: 'btn-line ai-retry', textContent: 'Try again' }); b.onclick = () => runAi(true);
-            return host.replaceChildren(head, el('p', { className: 'ai-wait err', textContent: msg || 'The AI assessment is not available right now.' }), b);
+        const host = $('rvAi'), btn = (label, cls) => { const b = el('button', { type: 'button', className: cls, textContent: label }); b.onclick = () => runAi(true); return b; };
+        if (mode === 'loading') {
+            host.className = 'rv-verdict none';
+            return host.replaceChildren(el('div', { className: 'v-main' }, el('span', { className: 'rv-spin sm', 'aria-hidden': 'true' }),
+                el('div', { className: 'v-txt' }, el('p', { className: 'v-title', textContent: 'Checking the photo…' }), el('p', { className: 'v-sum', textContent: 'Comparing it with the kiosk items.' }))));
         }
-        if (!a) {
-            const b = el('button', { type: 'button', className: 'btn-line ai-retry', textContent: 'Run AI assessment' }); b.onclick = () => runAi(true);
-            return host.replaceChildren(head, el('p', { className: 'ai-wait', textContent: 'No AI assessment was saved for this request.' }), b);
+        if (mode === 'error' || !a) {
+            const err = mode === 'error';
+            host.className = 'rv-verdict none';
+            return host.replaceChildren(el('div', { className: 'v-main' },
+                vIcon('<path d="M12 8v5M12 16.5h.01"/>'),
+                el('div', { className: 'v-txt' },
+                    el('p', { className: 'v-title', textContent: err ? 'AI check unavailable' : 'No AI check yet' }),
+                    el('p', { className: 'v-sum', textContent: err ? (msg || 'Look at the photo yourself.') : 'Run the check to compare the photo with the kiosk items.' })),
+                el('div', { className: 'v-side' }, btn(err ? 'Try again' : 'Run AI check', 'btn-line v-btn'))));
         }
-        const sim = AI_LABEL[a.visual_similarity] || 'unclear';
-        const rows = [['Observed', a.observed], ['Reference', a.reference],
-        ['Visual Similarity', el('span', { className: 'sim ' + sim, textContent: a.visual_similarity || 'Unclear' })],
-        ['Assessment', a.assessment], ['Recommendation', el('b', { className: 'ai-rec', textContent: a.recommendation || 'Review required' })]];
-        const dl = el('dl', { className: 'ai-dl' }, ...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', {}, v)]));
-        const again = el('button', { type: 'button', className: 'ai-again', textContent: 'Run again' }); again.onclick = () => runAi(true);
-        host.replaceChildren(head, dl, el('p', { className: 'ai-note' }, 'AI can be wrong. It only compares how the photo looks; you make the final call. ', again));
+        const k = verdictOf(a), v = V[k];
+        host.className = 'rv-verdict ' + k;
+        const col = (label, text) => el('div', { className: 'v-col' }, el('small', { textContent: label }), el('p', { textContent: text || '–', title: text || '' }));
+        host.replaceChildren(
+            el('div', { className: 'v-main' }, vIcon(v.icon),
+                el('div', { className: 'v-txt' }, el('p', { className: 'v-title', textContent: v.title }), el('p', { className: 'v-sum', textContent: a.assessment || a.recommendation || '' })),
+                el('div', { className: 'v-side' }, el('span', { className: 'v-chip', textContent: a.recommendation || '' }), btn('Run again', 'v-again'))),
+            el('div', { className: 'v-cols' }, col('Photo shows', a.observed), col('Kiosk lists', a.reference)),
+            el('p', { className: 'v-note', textContent: 'AI can be wrong. It only compares how the photo looks. You make the final call.' }));
     }
 
     async function runAi(force) {
@@ -643,28 +665,29 @@
             const res = await fetch(`${BASE}/functions/v1/${CONFIG.aiFunction}`, {
                 method: 'POST',
                 headers: { apikey: CONFIG.supabaseKey, Authorization: `Bearer ${CONFIG.supabaseKey}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: getToken(), request_id: id })
+                body: JSON.stringify({ token: getToken(), request_id: id, force: !!force })
             });
             j = await res.json().catch(() => ({}));
         } catch (e) { console.error(e); j = { reason: 'network' }; }
         if (seq !== rvSeq) return;                     // the cashier moved on to another request
         if (j && j.ok) { rvReq.ai_assessment = j.analysis; return paintAi(j.analysis); }
-        const M = { session: 'Your session has expired. Please log in again.', no_image: 'This request has no usable photo.', network: "Can't reach TapMate right now.", ai: 'The AI could not assess this photo.' };
+        const M = { session: 'Your session has expired. Please log in again.', no_image: 'This request has no usable photo.', network: "Can't reach TapMate right now.", ai: 'The AI could not check this photo.' };
         paintAi(null, 'error', M[j && j.reason] || M.ai);
     }
 
     async function openReview(r, trigger) {
         rvReq = r; rvm._ret = trigger; const seq = ++rvSeq;
-        const pending = r.status === 'pending';
+        const pending = r.status === 'pending', dlg = rvm.querySelector('.rv-dialog');
         const meta = [['Reference', r.reference || '–'], ['Student', `${r.student_name || 'Student'}${r.student_id ? ' · ' + r.student_id : ''}`],
         ['Purchased', when(r.purchased_at)], ['Requested', when(r.created_at)], ['Payment', methodLabel(r.method)], ['Amount', money(Number(r.amount))]];
         $('rvMeta').replaceChildren(...meta.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v })]));
         $('rvItems').replaceChildren(...itemsOf(r).map(i => el('li', {}, el('span', { textContent: `${i.qty} × ${i.name}` }), el('span', { textContent: money(Number(i.price) * Number(i.qty)) }))));
         $('rvReason').textContent = r.reason || '–';
         $('rvDetails').textContent = r.details || '';
+        $('rvDetails').hidden = !r.details;
         $('rvImg').removeAttribute('src'); $('rvPhoto').classList.add('loading'); $('rvPhoto').classList.remove('broken');
         $('rvNote').value = r.review_note || ''; $('rvNote').disabled = !pending; $('rvNoteWrap').hidden = !pending && !r.review_note;
-        $('rvActions').hidden = !pending;
+        $('rvActions').hidden = true;                       // buttons appear only once the check is done
         $('rvApprove').disabled = $('rvReject').disabled = false;
         $('rvApprove').textContent = 'Approve & refund'; $('rvReject').textContent = 'Reject';
         $('rvDone').hidden = pending;
@@ -672,15 +695,17 @@
         $('rvAlready').hidden = !(pending && r.sale_refunded);
         setErr($('rvMsg'), '');
         paintAi(null, 'loading');
+        dlg.classList.toggle('checking', pending);          // pending: the AI checks the photo BEFORE the cashier sees the request
         openModal(rvm);
 
+        const reveal = () => { if (seq !== rvSeq) return; dlg.classList.remove('checking'); $('rvActions').hidden = !pending; };
         let d;
         try { d = await rpc(CONFIG.requestRpc, { p_id: r.id }); } catch (e) { console.error(e); d = { reason: 'network' }; }
         if (seq !== rvSeq) return;
         if (!d || !d.ok) {
             $('rvPhoto').classList.remove('loading'); $('rvPhoto').classList.add('broken');
             paintAi(null, 'error', d && d.reason === 'session' ? 'Your session has expired. Please log in again.' : 'Could not load this request.');
-            return;
+            return reveal();
         }
         rvReq = Object.assign({}, r, d.request);
         const img = $('rvImg');
@@ -688,8 +713,9 @@
         img.onerror = () => { $('rvPhoto').classList.remove('loading'); $('rvPhoto').classList.add('broken'); };
         img.src = rvReq.image || '';
         if (rvReq.ai_assessment) paintAi(rvReq.ai_assessment);
-        else if (pending) runAi(false);
+        else if (pending) await runAi(false);               // wait for the AI, then show the request
         else paintAi(null);
+        reveal();
     }
 
     const closeReview = () => { if (rvBusy) return; rvSeq++; closeModal(rvm); rvReq = null; };
