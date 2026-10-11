@@ -7,6 +7,42 @@ from PySide6.QtGui import QImage
 _MODELS = {}      # YOLO weights are loaded once and reused every time the camera is switched on again
 
 
+def _try_open(index, backend, width, height):
+    """Open one camera index with one backend at one resolution. Returns an opened capture or None."""
+    cap = cv2.VideoCapture(index, backend)
+    if not cap.isOpened():
+        cap.release()
+        return None
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    for _ in range(15):                     # webcams often need a moment before the first real frame
+        ok, _frame = cap.read()
+        if ok and _frame is not None:
+            return cap
+        time.sleep(0.1)
+    cap.release()
+    return None
+
+
+def open_camera(c):
+    """Tries the configured camera first, then other indexes; DirectShow then Media Foundation;
+    the configured resolution then 640x480. Returns (cap, description) or (None, None)."""
+    backends = [("DSHOW", cv2.CAP_DSHOW), ("MSMF", cv2.CAP_MSMF)] if os.name == "nt" else [("ANY", cv2.CAP_ANY)]
+    sizes = [(int(c["camera_width"]), int(c["camera_height"]))]
+    if sizes[0] != (640, 480):
+        sizes.append((640, 480))
+    first = int(c["camera_index"])
+    indexes = [first] + [i for i in range(5) if i != first]
+    for idx in indexes:
+        for bname, backend in backends:
+            for (w, h) in sizes:
+                cap = _try_open(idx, backend, w, h)
+                if cap:
+                    return cap, f"camera {idx} ({bname}, {w}x{h})"
+    return None, None
+
+
 class Vision(QThread):
     """Camera + YOLO tracking. Emits `detected(label)` ONCE per physical item (per tracker ID).
     It only ever ADDS items. Nothing here can remove one: removal lives in the cashier's buttons."""
@@ -36,13 +72,10 @@ class Vision(QThread):
         elif model is None:
             self.status.emit(f"AI model not found at {c['model_path']}", True)
 
-        backend = cv2.CAP_DSHOW if os.name == "nt" else cv2.CAP_ANY
-        cap = cv2.VideoCapture(int(c["camera_index"]), backend)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, c["camera_width"])
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, c["camera_height"])
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        if not cap.isOpened():
-            self.status.emit("Camera not found. Check camera_index in config.json.", True)
+        cap, desc = open_camera(c)
+        if cap is None:
+            self.status.emit("Camera not found or in use by another program. Close other apps using the "
+                             "webcam, end leftover python/pythonw processes, then try again.", True)
             return
         if model:
             try:                                            # forget tracker IDs left over from the previous student
@@ -50,10 +83,11 @@ class Vision(QThread):
                     t.reset()
             except Exception:
                 pass
-            self.status.emit("Camera and AI ready", False)
+            self.status.emit(f"Camera and AI ready: {desc}", False)
+        else:
+            self.status.emit(f"Camera ready: {desc}", False)
 
         streak, counted, last_seen = {}, set(), time.time()
-        norm = lambda s: "".join(ch for ch in s.lower() if ch.isalnum())
         while self._run:
             ok, img = cap.read()
             if not ok:
