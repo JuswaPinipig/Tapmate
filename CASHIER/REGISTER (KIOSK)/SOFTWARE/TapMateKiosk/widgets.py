@@ -525,4 +525,10 @@ class GatePanel(QFrame):
 
     def set_url(self, url):
         self.qr.set_text(url)
-        self.warn.setVisible(bool(url) and not self.qr.rows)
+        if not url:
+            self.warn.setText("No QR code yet: the phone page address is not set.\n"
+                              "Put your order_tally_PIN.html address in config.json (phone > page_url) and restart the kiosk.")
+            self.warn.show()
+        else:
+            self.warn.setText("QR code can't be drawn: the \"segno\" package is missing.\nRun:  pip install segno")
+            self.warn.setVisible(not self.qr.rows)
