@@ -2,7 +2,8 @@
 //   1. The student can REMOVE items here while the camera scans.
 //   2. When they tap their RFID card at the kiosk again, the kiosk switches this page to PIN entry (phase = "pin").
 //   3. The PIN goes to the kiosk through Supabase; the kiosk checks it, pays, and sends the result back.
-// Needs order_tally_PIN_phase.sql (run once in Supabase) next to the existing kiosk_phone_* functions.
+// Needs order_tally_PIN_phase.sql, order_tally_PINv2.sql and order_tally_PINv3.sql (run once each, in that order) next to the
+// existing kiosk_phone_* functions. Assets/tapmate logo.png and Assets/shopping-cart.png sit next to this file.
 const SUPABASE_URL = "https://inoafkspgsxzxarzboqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z";
 
@@ -27,6 +28,12 @@ function hideMsg() { $("msg").classList.remove("on"); }
 function toast(t, ms = 3000) { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove("on"), ms); }
 function endSession() { if (paid) return; ended = true; $("pin").classList.remove("on"); msg("This session has ended. Tap your RFID card at the kiosk, then scan the new QR code."); }
 
+{   // if the logo image is missing, fall back to the TAPMATE wordmark
+    const img = document.getElementById("logo");
+    img.addEventListener("error", () => img.parentElement.classList.add("noimg"));
+    if (img.complete && img.naturalWidth === 0) img.parentElement.classList.add("noimg");
+}
+
 const money = (v) => ((V && V.currency) || "") + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ---------- order tally ---------- */
@@ -41,7 +48,7 @@ function render() {
     $("count").textContent = n + (n === 1 ? " item" : " items");
     const list = $("list"); list.textContent = "";
     if (!items.length) {
-        list.innerHTML = '<div class="empty"><b>Your order is empty</b>Place items in front of the kiosk camera and they will appear here.</div>';
+        list.innerHTML = '<div class="empty"><img class="bigcart" src="Assets/shopping-cart.png" alt="" onerror="this.remove()"><b>Your order is empty</b>Place items in front of the kiosk camera and they will appear here.</div>';
         return;
     }
     for (const it of items) {
@@ -97,13 +104,13 @@ function onPhase(p, t0) {
 
 /* ---------- payment method (RFID payment / Pay Later) ---------- */
 const PL_MSG = {
-    no_parent: ["Pay Later unavailable", "Your account isn't linked to a parent yet, so Pay Later isn't available. Link your student account to a parent account to use this feature."],
-    not_active: ["Pay Later not activated", (n) => "Your account is linked to " + (n || "a parent") + ", but Pay Later hasn't been activated yet. Please ask your linked parent to activate this feature."]
+    no_parent: ["Pay Later unavailable", "You are not eligible for pay later as you are currently not linked to a parent."],
+    not_active: ["Pay Later not activated", "You cannot use Pay later feature as you have not activated this feature with your linked parent."]
 };
 const plBlocked = () => pay && (pay.paylater === "no_parent" || pay.paylater === "not_active");
 function showPL() {
     const m = PL_MSG[pay.paylater];
-    $("plTitle").textContent = m[0]; $("plText").textContent = typeof m[1] === "function" ? m[1](pay.parent) : m[1];
+    $("plTitle").textContent = m[0]; $("plText").textContent = m[1];
     $("plmsg").classList.add("on");
 }
 function paintSeg(method) {
@@ -114,26 +121,32 @@ function paintSeg(method) {
     });
 }
 function syncPay(p) {
-    if (!p.payment) { $("payrow").hidden = true; return; }       // kiosk hasn't sent it yet (or the SQL isn't installed)
-    pay = { payment: p.payment, paylater: p.paylater, parent: p.parent_name };
-    $("payrow").hidden = false;
-    let shown = p.payment;
+    // The kiosk sends the method + eligibility (linked parent AND activated). Until it does, show RFID payment as the default.
+    pay = { payment: p.payment || "rfid", paylater: p.payment ? p.paylater : "unknown", parent: p.parent_name };
+    let shown = pay.payment;
     if (choosing) {
-        if (Date.now() < choosing.until && choosing.method !== p.payment) shown = choosing.method;   // optimistic until the kiosk confirms
+        if (Date.now() < choosing.until && choosing.method !== pay.payment) shown = choosing.method;   // optimistic until the kiosk confirms
         else {
-            if (choosing.method !== p.payment) toast("Couldn't switch to " + (choosing.method === "paylater" ? "Pay Later" : "RFID payment") + ". Try again.");
+            if (choosing.method !== pay.payment) {
+                if (choosing.method === "paylater" && plBlocked()) showPL();                              // the kiosk refused: say why
+                else toast("Couldn't switch to " + (choosing.method === "paylater" ? "Pay Later" : "RFID payment") + ". Try again.");
+            }
             choosing = null;
         }
     }
     paintSeg(shown);
+    $("paynote").textContent = plBlocked() ? "Pay Later needs a linked parent who has activated it." : "";
 }
 async function choose(m) {
-    if (!pay || mode !== "browse") return;
+    if (mode !== "browse") return;
+    if (!pay) pay = { payment: "rfid", paylater: "unknown", parent: "" };
     if (m === "paylater" && plBlocked()) return showPL();
     if (m === pay.payment && !choosing) return;
     choosing = { method: m, until: Date.now() + 4000 }; paintSeg(m);
-    try { await rpc("kiosk_phone_choose_payment", { p_code: code, p_method: m }); }
-    catch (e) { choosing = null; paintSeg(pay.payment); return toast("Could not change the payment method. Try again."); }
+    try {
+        const d = await rpc("kiosk_phone_choose_payment", { p_code: code, p_method: m });
+        if (!d || !d.ok) { choosing = null; paintSeg(pay.payment); return toast("The kiosk isn't ready yet. Try again in a moment."); }
+    } catch (e) { choosing = null; paintSeg(pay.payment); return toast("Could not change the payment method. Try again."); }
     setTimeout(poll, 700); setTimeout(poll, 1600); setTimeout(poll, 4200);
 }
 document.querySelectorAll("#seg button").forEach(b => b.onclick = () => choose(b.dataset.m));

@@ -713,6 +713,8 @@ class MainWindow(QWidget):
             self.phone_card.set_connected(self.phone.connected())
             if was != self.phone_card._connected and not self.banner_timer.isActive(): self.idle_banner()
             if self.phone.connected() and hasattr(self.phone, "push_state"): self.phone.push_state(self.phone_snapshot())
+            if time.monotonic() > getattr(self, "_pl_next", 0) and not self.paying:      # a parent may activate Pay Later mid-session
+                self._pl_next = time.monotonic() + 8; self.refresh_paylater()
             if self.phone.connected() and hasattr(self.phone, "set_pay_info"):
                 st, name = self.paylater_state()               # what the phone needs to offer / block Pay Later
                 self.phone.set_pay_info(self.order["payment"], st, name)
@@ -775,6 +777,19 @@ class MainWindow(QWidget):
         self.show_banner("The student is confirming on their phone…", "busy")
         reply(200, {"ok": True, "total": round(self.order_total(), 2)})
 
+    def refresh_paylater(self, then=None):
+        """Asks Supabase (parent_student_links + accounts.pay_later_enabled) whether this student may use Pay Later,
+        and stores the answer in self.student so paylater_state() is exact. Needs order_tally_PINv3.sql."""
+        uid = self.session_uid
+        if not uid: return then() if then else None
+        def done(r, e):
+            if uid == self.session_uid and self.student and not e and isinstance(r, dict) and r.get("ok"):
+                st = r.get("state")
+                self.student.update({"parent_linked": st != "no_parent", "parent_name": r.get("parent_name") or "",
+                                     "pay_later_enabled": st == "ok"})
+            if then: then()
+        run_async(lambda: self.api.rpc("kiosk_paylater_status", p_rfid=uid), done)
+
     def _ph_set_payment(self, body, reply):
         """The student picked RFID payment / Pay Later on the phone. Same rules as the old kiosk pill: Pay Later needs a
         linked parent who has activated it. The phone already blocks that case; this is the second check."""
@@ -782,7 +797,12 @@ class MainWindow(QWidget):
         if self.locked or self.state != "active" or self.paying or self.phone_hold: return
         m = "paylater" if body.get("method") == "paylater" else "rfid"
         if m == self.order["payment"]: return
-        if m == "paylater" and self.paylater_state()[0] in ("no_parent", "not_active"): return
+        if m == "paylater": return self.refresh_paylater(lambda: self._apply_payment(m))   # check the parent link right now
+        self._apply_payment(m)
+
+    def _apply_payment(self, m):
+        if self.locked or self.state != "active" or self.paying or self.phone_hold or m == self.order["payment"]: return
+        if m == "paylater" and self.paylater_state()[0] in ("no_parent", "not_active"): return   # the phone shows the message
         self.touch(); self.pending += 1
         run_async(lambda: self.api.rpc("kiosk_set_payment", p_method=m), self.after_mutation)
 
@@ -879,7 +899,7 @@ class MainWindow(QWidget):
             return self.greet.set_status(msg, True, 8)
         self.student, self.session_uid, self.state = res, uid, "welcome"
         self.greet.show_welcome(*self.welcome_text(res))
-        self.show_student(); self.phone_open()
+        self.show_student(); self.phone_open(); self.refresh_paylater()
         QTimer.singleShot(WELCOME_MS, self.enter_active)
 
     def pay(self, uid):
