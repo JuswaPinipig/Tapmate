@@ -21,7 +21,9 @@
     "required": true,
     "host": "",
     "port": 8765,
-    "pin_length": 4
+    "pin_length": 4,
+    "mode": "web",
+    "page_url": ""
   },
   "fullscreen": false
 }

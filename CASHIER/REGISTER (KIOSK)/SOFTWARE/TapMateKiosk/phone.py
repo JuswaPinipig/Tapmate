@@ -11,12 +11,14 @@ from concurrent.futures import Future
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import time
 
+import requests
 from PySide6.QtCore import QObject, Signal
 
 import os
 from phone_page import ENDED_PAGE
 
-DEFAULTS = {"enabled": True, "required": True, "host": "", "port": 8765, "pin_length": 4}
+DEFAULTS = {"enabled": True, "required": True, "host": "", "port": 8765, "pin_length": 4,
+            "mode": "web", "page_url": ""}
 KINDS = {"state", "remove", "begin_pin", "cancel_pin", "pay"}
 
 
@@ -217,3 +219,80 @@ class PhoneServer:
             return fut.result(timeout=25)
         except Exception:
             return 503, {"ok": False, "reason": "timeout", "message": "The kiosk didn't answer in time. Try again."}
+
+
+class PhoneWeb:
+    """Phone link through Supabase + your website (phone.mode = "web").
+    The QR code opens phone.page_url (your GitHub Pages order_tally_PIN.html) with ?s=<session code>. That page tells
+    Supabase "this session's phone arrived" (kiosk_phone_connect) and this class notices it by polling
+    kiosk_phone_status once a second in a background thread. It has the same interface as PhoneServer, so main.py
+    does not care which one it is talking to. The phone never needs to reach this PC, so no firewall / Wi-Fi setup."""
+
+    def __init__(self, cfg):
+        self.s = settings(cfg)
+        self.base, self.key = cfg["supabase_url"], cfg["supabase_key"]
+        self.hub = PhoneHub()                      # unused for now (the tally/PIN requests come in the next step)
+        self.token = None
+        self.last_seen = 0.0
+        self.opened = False
+        self.opened_at = 0.0
+        self._run = False
+        self._wake = threading.Event()
+
+    def _rpc(self, name, **args):
+        r = requests.post(f"{self.base}/rest/v1/rpc/{name}", timeout=8, json=args,
+                          headers={"apikey": self.key, "Authorization": f"Bearer {self.key}", "Content-Type": "application/json"})
+        if not r.ok:
+            raise RuntimeError(f"{name} -> HTTP {r.status_code}: {r.text[:160]}")
+        return r.json()
+
+    def start(self):
+        self._run = True
+        dbg("web phone link started; page_url=%r" % self.s.get("page_url"))
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def stop(self):
+        self._run = False; self._wake.set()
+
+    def _loop(self):
+        while self._run:
+            code = self.token
+            if code and not self.opened:
+                try:
+                    d = self._rpc("kiosk_phone_status", p_code=code)
+                    if self.token == code and isinstance(d, dict):
+                        if not d.get("exists"):
+                            self._rpc("kiosk_phone_open", p_code=code); dbg("session registered")
+                        elif d.get("connected"):
+                            self.opened_at = time.monotonic(); self.opened = True; dbg("phone connected")
+                except Exception as e:
+                    dbg("web link error: %s" % e)
+            self._wake.wait(1.0); self._wake.clear()
+
+    # ---- sessions ----
+    def new_session(self):
+        self.token = secrets.token_urlsafe(16); self.opened = False; self.opened_at = 0.0
+        self._wake.set()                           # register the code right away
+        return self.token
+
+    def revoke(self):
+        code = self.token
+        self.token = None; self.opened = False; self.opened_at = 0.0
+        if code:
+            def close():
+                try: self._rpc("kiosk_phone_close", p_code=code)
+                except Exception as e: dbg("close failed: %s" % e)
+            threading.Thread(target=close, daemon=True).start()
+
+    def url(self):
+        base = (self.s.get("page_url") or "").strip()
+        if not self.token or not base: return ""
+        return f"{base}{'&' if '?' in base else '?'}s={self.token}"
+
+    def connected(self):
+        return self.token is not None and self.opened
+
+
+def make_server(cfg):
+    """PhoneWeb (Supabase + your website) when phone.mode is "web", otherwise the old local-network PhoneServer."""
+    return PhoneWeb(cfg) if settings(cfg)["mode"] == "web" else PhoneServer(cfg)

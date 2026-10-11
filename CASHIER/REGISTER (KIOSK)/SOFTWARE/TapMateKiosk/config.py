@@ -9,7 +9,8 @@ DEFAULTS = {
     "confidence": 0.60, "confirm_frames": 6, "image_size": 640,
     "idle_seconds": 30, "confirm_seconds": 30,
     "rfid": {"mode": "keyboard", "serial_port": "COM3", "baud": 9600}, "fullscreen": False,
-    "phone": {"enabled": True, "required": True, "host": "", "port": 8765, "pin_length": 4},
+    "phone": {"enabled": True, "required": True, "host": "", "port": 8765, "pin_length": 4,
+              "mode": "web", "page_url": ""},
 }
 
 def load():

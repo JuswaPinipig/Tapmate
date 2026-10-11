@@ -636,10 +636,12 @@ class MainWindow(QWidget):
         ps = phone.settings(self.cfg)
         if not ps["enabled"]: return
         try:
-            srv = PhoneServer(self.cfg); srv.start()
+            srv = phone.make_server(self.cfg); srv.start()
         except OSError:
             self.last.setText(f"⚠ Phone link unavailable: port {ps['port']} is in use. Change phone.port in config.json.")
             return
+        if ps["mode"] == "web" and not str(ps.get("page_url") or "").startswith("http"):
+            self.last.setText("⚠ Phone link: set phone.page_url in config.json to your order_tally_PIN.html address.")
         self.phone = srv
         srv.hub.request.connect(self.on_phone_request)
         self.phone_tick.start()
