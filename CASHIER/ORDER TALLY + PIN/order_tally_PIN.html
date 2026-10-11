@@ -22,6 +22,14 @@
             </div>
             <div class="hint">Scanned something by mistake? Remove it here. When you're done, tap your RFID card at the
                 kiosk to confirm your payment.</div>
+            <div class="payrow" id="payrow" hidden>
+                <div class="paylabel">Pay with</div>
+                <div class="seg" id="seg">
+                    <i class="knob"></i>
+                    <button type="button" data-m="rfid">RFID payment</button>
+                    <button type="button" data-m="paylater">Pay Later</button>
+                </div>
+            </div>
             <div id="list"></div>
         </main>
         <footer><span>Total</span><b id="total">0.00</b></footer>
@@ -31,6 +39,7 @@
     <div id="pin" aria-hidden="true">
         <h2>Enter your PIN</h2>
         <div class="for">to pay <b id="pinTotal"></b></div>
+        <div class="how" id="pinHow"></div>
         <div class="dots" id="dots"></div>
         <div class="pmsg" id="pinMsg"></div>
         <div class="pad" id="pad"></div>
@@ -42,6 +51,14 @@
         <div class="big" id="paidAmt"></div>
         <p id="paidBal"></p>
         <p>Your receipt is printing at the kiosk.</p>
+    </div>
+
+    <div class="sheet" id="plmsg" role="dialog" aria-modal="true" aria-labelledby="plTitle">
+        <div class="card">
+            <h3 id="plTitle"></h3>
+            <p id="plText"></p>
+            <button type="button" class="ok" id="plOk">OK</button>
+        </div>
     </div>
 
     <div id="msg">Connecting to the kiosk&hellip;</div>

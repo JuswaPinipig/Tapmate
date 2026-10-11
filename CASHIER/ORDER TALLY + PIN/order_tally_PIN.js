@@ -9,6 +9,7 @@ const SUPABASE_KEY = "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z";
 const code = new URLSearchParams(location.search).get("s");
 const $ = (id) => document.getElementById(id);
 let V = null, sig = "", ended = false;
+let pay = null, choosing = null;   // pay = {payment, paylater, parent} from the kiosk; choosing = a pick waiting for the kiosk to confirm
 let mode = "browse", pin = "", sending = false, paid = false, PIN_LEN = 4, shownTotal = 0, submitDoneAt = 0;
 
 async function rpc(name, args) {
@@ -81,7 +82,7 @@ async function poll() {
         ]);
         if (!d || !d.ok) return endSession();
         V = d; hideMsg(); render();
-        if (p && p.ok) onPhase(p, t0);
+        if (p && p.ok) { syncPay(p); onPhase(p, t0); }
     } catch (e) { /* network hiccup: keep the last view, try again */ }
 }
 
@@ -93,6 +94,50 @@ function onPhase(p, t0) {
     if (p.phase === "pin" && mode === "browse") enterPin(p);
     else if (p.phase !== "pin" && mode === "pin") leavePin("PIN entry ended. Tap your RFID card at the kiosk to try again.");
 }
+
+/* ---------- payment method (RFID payment / Pay Later) ---------- */
+const PL_MSG = {
+    no_parent: ["Pay Later unavailable", "Your account isn't linked to a parent yet, so Pay Later isn't available. Link your student account to a parent account to use this feature."],
+    not_active: ["Pay Later not activated", (n) => "Your account is linked to " + (n || "a parent") + ", but Pay Later hasn't been activated yet. Please ask your linked parent to activate this feature."]
+};
+const plBlocked = () => pay && (pay.paylater === "no_parent" || pay.paylater === "not_active");
+function showPL() {
+    const m = PL_MSG[pay.paylater];
+    $("plTitle").textContent = m[0]; $("plText").textContent = typeof m[1] === "function" ? m[1](pay.parent) : m[1];
+    $("plmsg").classList.add("on");
+}
+function paintSeg(method) {
+    const seg = $("seg"); seg.classList.toggle("pl", method === "paylater");
+    seg.querySelectorAll("button").forEach(b => {
+        b.classList.toggle("on", b.dataset.m === method);
+        b.classList.toggle("dim", b.dataset.m === "paylater" && plBlocked());
+    });
+}
+function syncPay(p) {
+    if (!p.payment) { $("payrow").hidden = true; return; }       // kiosk hasn't sent it yet (or the SQL isn't installed)
+    pay = { payment: p.payment, paylater: p.paylater, parent: p.parent_name };
+    $("payrow").hidden = false;
+    let shown = p.payment;
+    if (choosing) {
+        if (Date.now() < choosing.until && choosing.method !== p.payment) shown = choosing.method;   // optimistic until the kiosk confirms
+        else {
+            if (choosing.method !== p.payment) toast("Couldn't switch to " + (choosing.method === "paylater" ? "Pay Later" : "RFID payment") + ". Try again.");
+            choosing = null;
+        }
+    }
+    paintSeg(shown);
+}
+async function choose(m) {
+    if (!pay || mode !== "browse") return;
+    if (m === "paylater" && plBlocked()) return showPL();
+    if (m === pay.payment && !choosing) return;
+    choosing = { method: m, until: Date.now() + 4000 }; paintSeg(m);
+    try { await rpc("kiosk_phone_choose_payment", { p_code: code, p_method: m }); }
+    catch (e) { choosing = null; paintSeg(pay.payment); return toast("Could not change the payment method. Try again."); }
+    setTimeout(poll, 700); setTimeout(poll, 1600); setTimeout(poll, 4200);
+}
+document.querySelectorAll("#seg button").forEach(b => b.onclick = () => choose(b.dataset.m));
+$("plOk").onclick = () => $("plmsg").classList.remove("on");
 
 /* ---------- PIN entry ---------- */
 function buildPad() {
@@ -115,6 +160,7 @@ function enterPin(p) {
     PIN_LEN = Number(p.pin_len) || 4; shownTotal = Number(p.total) || 0;
     buildDots(); drawDots(); setMsg(""); lockPad(false);
     $("pinTotal").textContent = money(shownTotal);
+    $("pinHow").textContent = p.payment === "paylater" ? "using Pay Later" : "using your RFID wallet";
     $("pin").classList.add("on"); $("pin").setAttribute("aria-hidden", "false");   // slides in over the tally
 }
 function leavePin(text) {

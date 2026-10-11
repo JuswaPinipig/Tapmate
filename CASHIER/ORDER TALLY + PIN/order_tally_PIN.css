@@ -466,3 +466,134 @@ footer b {
         transition: none
     }
 }
+
+/* ---------- payment method: RFID payment / Pay Later ---------- */
+.payrow[hidden] {
+    display: none
+}
+
+.payrow {
+    margin: 0 4px 14px
+}
+
+.paylabel {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    margin: 0 4px 6px
+}
+
+.seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: 48px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: #F3E8E8
+}
+
+.seg .knob {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    border-radius: 20px;
+    background: linear-gradient(#E3C458, var(--gold));
+    transition: transform .3s cubic-bezier(.22, .8, .3, 1)
+}
+
+.seg.pl .knob {
+    transform: translateX(100%)
+}
+
+.seg button {
+    position: relative;
+    z-index: 1;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--muted);
+    transition: color .2s
+}
+
+.seg button.on {
+    color: var(--maroon-dk)
+}
+
+.seg button.dim {
+    opacity: .55
+}
+
+#pin .how {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--gold-lt);
+    min-height: 1.4em
+}
+
+.sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    background: rgba(43, 27, 30, .45);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity .25s ease, visibility 0s linear .25s
+}
+
+.sheet.on {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity .25s ease
+}
+
+.sheet .card {
+    width: 100%;
+    max-width: 488px;
+    background: #fff;
+    border-radius: 20px;
+    padding: 22px 20px 16px;
+    transform: translateY(24px);
+    transition: transform .3s cubic-bezier(.22, .8, .3, 1)
+}
+
+.sheet.on .card {
+    transform: none
+}
+
+.sheet h3 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    color: var(--maroon)
+}
+
+.sheet p {
+    margin: 0 0 16px;
+    color: var(--ink)
+}
+
+.sheet .ok {
+    width: 100%;
+    height: 50px;
+    border-radius: 25px;
+    background: var(--gold);
+    color: var(--maroon-dk);
+    font-weight: 800;
+    font-size: 17px
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+    .seg .knob,
+    .sheet,
+    .sheet.on,
+    .sheet .card {
+        transition: none
+    }
+}

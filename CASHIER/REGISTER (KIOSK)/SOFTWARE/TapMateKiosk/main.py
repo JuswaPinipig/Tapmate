@@ -288,8 +288,10 @@ class MainWindow(QWidget):
         tt.addWidget(area, 1)
         tb.addWidget(self.tally_top, 1)
 
+        # The RFID payment / Pay Later choice now lives on the student's phone (order_tally_PIN). This pill is no longer
+        # shown; it only stays as a hidden holder so apply_order() can keep calling set_index() on it.
         self.pay_toggle = PillToggle(["RFID payment", "Pay Later"]); self.pay_toggle.changed.connect(self.on_pay_toggled)
-        tb.addWidget(self.pay_toggle)
+        self.pay_toggle.setParent(self.tally_box); self.pay_toggle.hide()
         self.clear_btn = QPushButton("Clear order"); self.clear_btn.setObjectName("ghost")
         self.clear_btn.setFocusPolicy(Qt.NoFocus); self.clear_btn.clicked.connect(self.clear_order); tb.addWidget(self.clear_btn)
         tot = QHBoxLayout(); tl = QLabel("Total"); tl.setObjectName("totalL")
@@ -711,6 +713,9 @@ class MainWindow(QWidget):
             self.phone_card.set_connected(self.phone.connected())
             if was != self.phone_card._connected and not self.banner_timer.isActive(): self.idle_banner()
             if self.phone.connected() and hasattr(self.phone, "push_state"): self.phone.push_state(self.phone_snapshot())
+            if self.phone.connected() and hasattr(self.phone, "set_pay_info"):
+                st, name = self.paylater_state()               # what the phone needs to offer / block Pay Later
+                self.phone.set_pay_info(self.order["payment"], st, name)
 
     def phone_snapshot(self):
         """The order as the phone page shows it (no balance, no PIN: only what the student needs to review)."""
@@ -769,6 +774,17 @@ class MainWindow(QWidget):
         self.phone_hold = True; self.hold_timer.start(90_000); self.touch()
         self.show_banner("The student is confirming on their phone…", "busy")
         reply(200, {"ok": True, "total": round(self.order_total(), 2)})
+
+    def _ph_set_payment(self, body, reply):
+        """The student picked RFID payment / Pay Later on the phone. Same rules as the old kiosk pill: Pay Later needs a
+        linked parent who has activated it. The phone already blocks that case; this is the second check."""
+        reply(200, {"ok": True})                                       # the phone watches the order's real payment method instead
+        if self.locked or self.state != "active" or self.paying or self.phone_hold: return
+        m = "paylater" if body.get("method") == "paylater" else "rfid"
+        if m == self.order["payment"]: return
+        if m == "paylater" and self.paylater_state()[0] in ("no_parent", "not_active"): return
+        self.touch(); self.pending += 1
+        run_async(lambda: self.api.rpc("kiosk_set_payment", p_method=m), self.after_mutation)
 
     def _ph_pin(self, body, reply):
         """Web mode: the phone typed its PIN. The order was frozen when the card was tapped, so the total is the one it saw."""

@@ -242,6 +242,8 @@ class PhoneWeb:
         self._pushed = None                        # the snapshot Supabase already has
         self._phase = ("browse", 0.0, 4)           # what the phone should show: order tally ("browse") or PIN entry ("pin")
         self._phase_pushed = None
+        self._pay = ("rfid", "unknown", "")        # payment method + Pay Later eligibility shown on the phone
+        self._pay_pushed = None
 
     def _rpc(self, name, **args):
         r = requests.post(f"{self.base}/rest/v1/rpc/{name}", timeout=8, json=args,
@@ -281,14 +283,22 @@ class PhoneWeb:
                         self._rpc("kiosk_phone_set_phase", p_code=code, p_phase=ph[0], p_total=ph[1], p_pin_len=ph[2])
                         if self.token == code: self._phase_pushed = ph
                         dbg("phone phase -> %s" % ph[0])
-                    if ph[0] == "pin" and self._phase_pushed == ph:      # PIN typed on the phone (never logged)
+                    pay = self._pay
+                    if pay != self._pay_pushed:                          # payment method / Pay Later eligibility
+                        self._rpc("kiosk_phone_set_pay", p_code=code, p_payment=pay[0], p_paylater=pay[1], p_parent=pay[2])
+                        if self.token == code: self._pay_pushed = pay
+                    if self._phase_pushed == ph:                         # things typed / chosen on the phone
                         inp = self._rpc("kiosk_phone_take_input", p_code=code)
                         if isinstance(inp, dict) and self.token == code:
-                            if inp.get("cancel"):
-                                self.hub.request.emit("cancel_pin", {}, lambda *a: None)
-                            elif inp.get("pin"):
-                                dbg("phone sent a PIN")
-                                self.hub.request.emit("pin", {"pin": str(inp["pin"])}, self._result_cb(code))
+                            if inp.get("payment"):
+                                dbg("phone chose payment: %s" % inp["payment"])
+                                self.hub.request.emit("set_payment", {"method": inp["payment"]}, lambda *a: None)
+                            if ph[0] == "pin":                           # PIN is never logged
+                                if inp.get("cancel"):
+                                    self.hub.request.emit("cancel_pin", {}, lambda *a: None)
+                                elif inp.get("pin"):
+                                    dbg("phone sent a PIN")
+                                    self.hub.request.emit("pin", {"pin": str(inp["pin"])}, self._result_cb(code))
                     reqs = self._rpc("kiosk_phone_take_removals", p_code=code)
                     for r in (reqs if isinstance(reqs, list) else []):
                         if self.token != code: break
@@ -307,6 +317,11 @@ class PhoneWeb:
             threading.Thread(target=send, daemon=True).start()
         return reply
 
+    def set_pay_info(self, payment, paylater_state, parent_name=""):
+        """Called by the kiosk: the order's payment method and whether Pay Later can be used (ok / no_parent / not_active / unknown)."""
+        v = (payment, paylater_state, parent_name or "")
+        if v != self._pay: self._pay = v; self._wake.set()
+
     def set_phase(self, phase, total=0, pin_len=4):
         """Called by the kiosk (UI thread): 'pin' = the phone switches to PIN entry, 'browse' = back to the order tally."""
         self._phase = (phase, float(total or 0), int(pin_len)); self._wake.set()
@@ -319,13 +334,14 @@ class PhoneWeb:
     def new_session(self):
         self.token = secrets.token_urlsafe(16); self.opened = False; self.opened_at = 0.0
         self._state = None; self._pushed = None; self._phase = ("browse", 0.0, 4); self._phase_pushed = None
+        self._pay = ("rfid", "unknown", ""); self._pay_pushed = None
         self._wake.set()                           # register the code right away
         return self.token
 
     def revoke(self):
         code = self.token
         self.token = None; self.opened = False; self.opened_at = 0.0; self._state = None; self._pushed = None
-        self._phase = ("browse", 0.0, 4); self._phase_pushed = None
+        self._phase = ("browse", 0.0, 4); self._phase_pushed = None; self._pay = ("rfid", "unknown", ""); self._pay_pushed = None
         if code:
             def close():
                 try: self._rpc("kiosk_phone_close", p_code=code)
