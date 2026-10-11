@@ -335,20 +335,20 @@
         var p = curSale(); if (!p) return;
         var left = new Date(p.created_at).getTime() + REFUND_MS - Date.now();
         var t = $("rc-timer"), btn = $("rc-refund"), note = $("rc-rfnote");
-        if (p.refund_status) {
-            var rs = REFUND_ST[p.refund_status] || REFUND_ST.pending;
+        if (p.refund_status === "pending" || p.refund_status === "approved") {
+            var rs = REFUND_ST[p.refund_status];
             if (t) { t.textContent = rs[1]; t.className = ""; }
-            btn.disabled = true; btn.textContent = "Refund requested";
-            note.textContent = p.refund_status === "pending" ? "Your cashier and the admin are reviewing it."
-                : p.refund_status === "approved" ? "Your refund was approved." : "Your refund request was declined.";
+            btn.disabled = true; btn.textContent = p.refund_status === "pending" ? "Refund pending" : "Refunded";
+            note.textContent = p.refund_status === "pending" ? "Your cashier and the admin are reviewing it. You can send a new request once it is reviewed."
+                : "Your refund was approved.";
         } else if (left <= 0) {
             if (t) { t.textContent = "Closed"; t.className = ""; }
             btn.disabled = true; btn.textContent = "Refund window closed";
             note.textContent = "Refunds can only be requested within 24 hours of the purchase.";
         } else {
             if (t) { t.textContent = clock(left); t.className = left < 3600000 ? "low" : ""; }
-            btn.disabled = false; btn.textContent = "Request refund";
-            note.textContent = "You can request a refund for the next " + (left >= 3600000 ? Math.floor(left / 3600000) + " h " + Math.floor((left % 3600000) / 60000) + " min" : Math.max(1, Math.ceil(left / 60000)) + " min") + ".";
+            btn.disabled = false; btn.textContent = p.refund_status === "rejected" ? "Request refund again" : "Request refund";
+            note.textContent = (p.refund_status === "rejected" ? "Your last request was declined. " : "") + "You can request a refund for the next " + (left >= 3600000 ? Math.floor(left / 3600000) + " h " + Math.floor((left % 3600000) / 60000) + " min" : Math.max(1, Math.ceil(left / 60000)) + " min") + ".";
         }
     }
     function startTick() {
@@ -455,7 +455,7 @@
             : !$("rf-reason").value ? "Choose a reason for the refund."
                 : $("rf-details").value.trim().length < 5 ? "Tell us a little more about what happened." : "";
         setErr($("rf-msg"), msg); if (msg) return;
-        var ok = await ask("Send refund request?", "Your cashier and the admin will see your photo and message. You can only send one request per purchase.", "Send request");
+        var ok = await ask("Send refund request?", "Your cashier and the admin will see your photo and message. You can have one pending request per purchase.", "Send request");
         if (!ok) return;
         rfBusy = true; rfSync();
         var res;
@@ -472,7 +472,7 @@
         if (r.reason === "session") return goToLogin();
         if (r.reason === "expired" || r.reason === "duplicate") { closeRefund(); refresh().then(updateRefundUI); }
         setErr($("rf-msg"), {
-            expired: "The 24-hour refund window has closed for this purchase.", duplicate: "You already sent a refund request for this purchase.",
+            expired: "The 24-hour refund window has closed for this purchase.", duplicate: "This purchase already has a pending or approved refund request.",
             not_found: "We couldn't find that purchase.", image: "That photo couldn't be used. Try a different one.", reason: "Choose a reason for the refund.",
             details: "Tell us a little more about what happened."
         }[r.reason] || "Could not send your request.");
