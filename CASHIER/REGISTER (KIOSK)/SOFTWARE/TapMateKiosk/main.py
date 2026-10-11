@@ -405,7 +405,7 @@ class MainWindow(QWidget):
         """Cross-fade: snapshot the current screen, switch pages underneath, then fade the snapshot away."""
         old = self.stack.currentWidget()
         if old is page: return
-        prev = getattr(self, "_fade", None)
+        prev = getattr(self, "_xfade", None)
         if prev: prev[1].stop(); prev[0].deleteLater()
         ov = QLabel(self.stack); ov.setPixmap(old.grab()); ov.setGeometry(self.stack.rect())
         ov.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -415,8 +415,8 @@ class MainWindow(QWidget):
         anim.setDuration(ms); anim.setStartValue(1.0); anim.setEndValue(0.0); anim.setEasingCurve(QEasingCurve.InOutCubic)
         def done():
             ov.deleteLater()
-            if getattr(self, "_fade", None) and self._fade[0] is ov: self._fade = None
-        anim.finished.connect(done); self._fade = (ov, anim); anim.start()
+            if getattr(self, "_xfade", None) and self._xfade[0] is ov: self._xfade = None
+        anim.finished.connect(done); self._xfade = (ov, anim); anim.start()
 
     def enter_active(self):
         if self.state != "welcome" or self.locked: return
