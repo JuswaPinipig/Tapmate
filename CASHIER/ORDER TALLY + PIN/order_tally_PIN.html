@@ -36,6 +36,7 @@
                 <div class="paynote" id="paynote"></div>
             </div>
             <div id="list"></div>
+            <button type="button" class="cancelTx" id="cancelTx">Cancel transaction</button>
         </main>
         <footer><span>Total</span><b id="total">0.00</b></footer>
     </div>
@@ -63,6 +64,15 @@
             <h3 id="plTitle"></h3>
             <p id="plText"></p>
             <button type="button" class="ok" id="plOk">OK</button>
+        </div>
+    </div>
+
+    <div class="sheet" id="cxmsg" role="dialog" aria-modal="true" aria-labelledby="cxTitle">
+        <div class="card">
+            <h3 id="cxTitle">Cancel this transaction?</h3>
+            <p>Your order will be cleared and the kiosk session will end.</p>
+            <button type="button" class="ok" id="cxYes">Yes, cancel transaction</button>
+            <button type="button" class="ghost" id="cxNo">Keep my order</button>
         </div>
     </div>
 

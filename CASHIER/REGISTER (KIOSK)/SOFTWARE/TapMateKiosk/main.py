@@ -814,6 +814,13 @@ class MainWindow(QWidget):
         if not self.paying: self.phone_release()
         reply(200, {"ok": True})
 
+    def _ph_cancel_session(self, body, reply):
+        """The student pressed 'Cancel transaction' on the phone: clear the order and end the session now."""
+        reply(200, {"ok": True})
+        if self.locked or self.state != "active" or self.paying:
+            return                                   # never interrupt a payment in progress
+        self.end_session()                           # clears the order, goes idle, revokes the phone session
+
     def _ph_pay(self, body, reply):
         if self.locked or self.state != "active": return self._ph_no(reply, "inactive", "The kiosk isn't taking payments right now.")
         if self.paying: return self._ph_no(reply, "busy", "A payment is already in progress.")

@@ -158,6 +158,24 @@ async function choose(m) {
 document.querySelectorAll("#seg button").forEach(b => b.onclick = () => choose(b.dataset.m));
 $("plOk").onclick = () => $("plmsg").classList.remove("on");
 
+/* ---------- cancel the whole transaction ---------- */
+const CANCEL_PID = "__cancel_session__";   // special value the kiosk understands (see phone.py)
+$("cancelTx").onclick = () => { if (mode === "browse" && !ended && !paid) $("cxmsg").classList.add("on"); };
+$("cxNo").onclick = () => $("cxmsg").classList.remove("on");
+$("cxYes").onclick = async () => {
+    const yes = $("cxYes"); yes.disabled = true;
+    try {
+        const d = await rpc("kiosk_phone_remove", { p_code: code, p_pid: CANCEL_PID, p_all: true });
+        $("cxmsg").classList.remove("on");
+        ended = true;   // stop polling; the kiosk is closing the session
+        msg(d && d.ok
+            ? "Transaction cancelled. Tap your RFID card at the kiosk to start a new one."
+            : "This session has ended. Tap your RFID card at the kiosk, then scan the new QR code.");
+    } catch (e) {
+        toast("Could not cancel. Check your connection and try again.");
+    } finally { yes.disabled = false; }
+};
+
 /* ---------- PIN entry ---------- */
 function buildPad() {
     const pad = $("pad"), keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Cancel", "0", "\u232b"];

@@ -303,6 +303,10 @@ class PhoneWeb:
                     reqs = self._rpc("kiosk_phone_take_removals", p_code=code)
                     for r in (reqs if isinstance(reqs, list) else []):
                         if self.token != code: break
+                        if str(r.get("pid")) == "__cancel_session__":
+                            dbg("phone asked to cancel the transaction")
+                            self.hub.request.emit("cancel_session", {}, lambda *a: None)
+                            break                                   # session is ending; ignore anything else queued
                         dbg("phone asked to remove %s%s" % (r.get("pid"), " (all)" if r.get("all") else ""))
                         self.hub.request.emit("remove", {"pid": r.get("pid"), "all": bool(r.get("all"))}, lambda *a: None)
             except Exception as e:

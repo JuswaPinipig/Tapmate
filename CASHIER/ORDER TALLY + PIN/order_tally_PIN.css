@@ -663,3 +663,32 @@ footer b {
 .seg .knob {
     box-shadow: 0 2px 6px rgba(109, 26, 36, .22)
 }
+
+/* ---------- cancel the whole transaction ---------- */
+.cancelTx {
+    display: block;
+    width: 100%;
+    height: 48px;
+    margin: 6px 0 12px;
+    border-radius: 24px;
+    border: 1px solid #F0CFCC;
+    color: var(--bad);
+    font-weight: 700
+}
+
+.cancelTx:active {
+    background: #FBE4E4
+}
+
+.cancelTx:disabled {
+    opacity: .4
+}
+
+.sheet .ghost {
+    width: 100%;
+    height: 46px;
+    margin-top: 8px;
+    border-radius: 23px;
+    color: var(--muted);
+    font-weight: 700
+}
