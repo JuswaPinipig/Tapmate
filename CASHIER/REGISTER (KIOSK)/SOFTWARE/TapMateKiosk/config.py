@@ -7,7 +7,7 @@ DEFAULTS = {
     "supabase_url": "", "supabase_key": "", "currency": "₱",
     "model_path": "models/best.pt", "camera_index": 0, "camera_width": 1280, "camera_height": 720,
     "confidence": 0.60, "confirm_frames": 6, "image_size": 640,
-    "idle_seconds": 30, "confirm_seconds": 30,
+    "idle_seconds": 90, "confirm_seconds": 30,
     "rfid": {"mode": "keyboard", "serial_port": "COM3", "baud": 9600}, "fullscreen": False,
     "phone": {"enabled": True, "required": True, "host": "", "port": 8765, "pin_length": 4,
               "mode": "web", "page_url": ""},

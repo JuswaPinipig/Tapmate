@@ -120,12 +120,6 @@ class ReceiptPaper(QWidget):
         lay.addWidget(_Dash())
         row("TOTAL", m(d["total"]), 16, True)
         lay.addWidget(_Dash())
-        if d.get("method") == "paylater":
-            row("Pay Later available", m(d.get("pay_later_available") or 0))
-        else:
-            row("Wallet balance", m(d.get("new_balance") or 0))
-        if d.get("remaining_today") is not None:
-            row("Left to spend today", m(d["remaining_today"]))
         lay.addSpacing(6); lay.addWidget(_Barcode(d.get("reference", "TAPMATE")))
         lay.addWidget(label("Thank you!", 12, True, True))
 
@@ -191,7 +185,7 @@ class ReceiptOverlay(QWidget):
         self.paper.move(0, 0); self._vis(0)
         self.done.hide(); self.show(); self.raise_()
         self.anim.stop(); self.anim.setDuration(1300 + self.paper.height() * 4); self.anim.start()
-        self.auto.start(25000)
+        self.auto.stop()                                   # the 10 s countdown starts once printing has finished
 
     def _layout(self):
         if not self.paper: return
@@ -214,7 +208,8 @@ class ReceiptOverlay(QWidget):
         h = self.paper.height()
         self._vis(min(h, round(v * h / 7) * 7))            # advances in small steps, like a thermal printer
         if v >= 1.0:
-            self._vis(h); self.edge.hide(); self.done.show(); self.done.raise_()
+            self._vis(h); self.edge.hide()
+            self.auto.start(10000)                         # no Done button: the receipt closes itself and the session ends
 
     def resizeEvent(self, e):
         self._layout(); super().resizeEvent(e)

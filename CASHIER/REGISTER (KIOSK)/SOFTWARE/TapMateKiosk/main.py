@@ -257,10 +257,12 @@ class MainWindow(QWidget):
         sb = QVBoxLayout(self.student_box); sb.setContentsMargins(16, 12, 16, 12); sb.setSpacing(4)
         self.stu_name = QLabel(""); self.stu_name.setObjectName("stuName"); sb.addWidget(self.stu_name)
         def kv(k):
-            r = QHBoxLayout(); a = QLabel(k); a.setObjectName("muted"); v = QLabel(""); v.setObjectName("stuVal")
+            r = QHBoxLayout(); a = QLabel(k); a.setObjectName("muted"); v = QLabel(""); v.setObjectName("stuVal"); v.key = a
             v.setAlignment(Qt.AlignRight); r.addWidget(a); r.addStretch(); r.addWidget(v); sb.addLayout(r); return v
         self.stu_bal = kv("RFID wallet balance")
         self.stu_lim = kv("Today's spending limit")
+        self.stu_phone = QLabel("● Phone connected"); self.stu_phone.setStyleSheet("font-size:12px;font-weight:700;color:#1E6B3A;")
+        sb.addWidget(self.stu_phone); self.stu_phone.hide()                   # phone status now lives inside the student card
         self.student_box.hide()
 
         self.phone_card = PhoneCard(); self.phone_card.hide()
@@ -294,9 +296,7 @@ class MainWindow(QWidget):
         self.pay_toggle.setParent(self.tally_box); self.pay_toggle.hide()
         self.clear_btn = QPushButton("Clear order"); self.clear_btn.setObjectName("ghost")
         self.clear_btn.setFocusPolicy(Qt.NoFocus); self.clear_btn.clicked.connect(self.clear_order); tb.addWidget(self.clear_btn)
-        tot = QHBoxLayout(); tl = QLabel("Total"); tl.setObjectName("totalL")
-        self.total = QLabel(self.money(0)); self.total.setObjectName("total")
-        tot.addWidget(tl); tot.addStretch(); tot.addWidget(self.total); tb.addLayout(tot)
+        self.total = QLabel(self.money(0)); self.total.hide()          # the total is no longer shown on the kiosk (render_order still sets it)
         self.banner = QLabel(); self.banner.setAlignment(Qt.AlignCenter); self.banner.setWordWrap(True); self.banner.setMinimumHeight(64)
         tb.addWidget(self.banner); self.show_banner("Waiting for the cashier session…", "busy")
         p.addWidget(self.tally_box, 1)
@@ -324,10 +324,18 @@ class MainWindow(QWidget):
     def idle_banner(self):
         if self.locked or self.paying or self.state != "active": return
         if self.phone_hold: return self.show_banner("Enter your PIN on your phone to finalize your payment…", "busy")
-        if self.order["items"] and self.phone and self.phone.connected() and hasattr(self.phone, "set_phase"):
-            return self.show_banner("Tap your RFID to confirm your payment, and confirm your PIN directly through your phone to finalize.", "idle")
-        method = "Pay Later" if self.order["payment"] == "paylater" else "RFID"
-        self.show_banner(f"Tap the same RFID card again to pay ({method})" if self.order["items"] else "Waiting for items to scan…", "idle")
+        if self.order["items"]: return self.show_banner(self.scanned_text(), "ok")
+        self.show_banner("Waiting for items to scan…", "idle")
+
+    def scanned_text(self):
+        """'<item> has been scanned' / '<a>, <b> and <c> have been scanned' for everything currently in the order."""
+        names = []
+        for it in self.order["items"]:
+            p = self.products.get(it["product_id"])
+            if p and p["name"] not in names: names.append(p["name"])
+        if not names: return "Waiting for items to scan…"
+        who = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+        return f"{who} {'has' if len(names) == 1 else 'have'} been scanned"
 
     def toggle_full(self):
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
@@ -424,7 +432,7 @@ class MainWindow(QWidget):
         if self.state != "welcome" or self.locked: return
         self.state = "active"; self.idle_timer.start()
         self.set_gate(bool(self.phone and self.phone.token and phone.settings(self.cfg).get("required", True)))
-        self.phone_card.setVisible(bool(self.phone and self.phone.token) and not self.phone_gate)
+        self.sync_phone_ui()
         self.last.setText("Waiting for your phone…" if self.phone_gate else "Waiting for the first item…")
         self.fade_to(self.main_page); self.idle_banner()
         # start the camera once the fade is nearly done, so loading it can't stutter the animation
@@ -589,6 +597,7 @@ class MainWindow(QWidget):
         if new and not self.receipt.isVisible():
             self.flash |= new; QTimer.singleShot(1400, self.unflash)
         self.pay_toggle.set_index(1 if res["payment"] == "paylater" else 0)
+        if self.student and self.state in ("welcome", "active"): self.show_student()      # wallet balance <-> Pay Later balance
         self.render_order()
         if not self.banner_timer.isActive() and not self.receipt.isVisible(): self.idle_banner()
 
@@ -654,14 +663,20 @@ class MainWindow(QWidget):
         """A student just tapped in: give them a fresh QR code / token."""
         if not self.phone: return
         self.phone.new_session(); url = self.phone.url()
-        self.phone_card.set_url(url); self.gate.set_url(url); self.phone_card.set_connected(False)
+        self.phone_card.set_url(url); self.gate.set_url(url); self.phone_card.set_connected(False); self.sync_phone_ui()
 
     def phone_close(self):
         """Student done (or session ended): the old QR code stops working immediately."""
         self.phone_release(flush=False)
         if self.phone: self.phone.revoke()
         self.tally_top.show()
-        self.phone_card.hide(); self.phone_card.set_connected(False); self.set_gate(False)
+        self.phone_card.hide(); self.phone_card.set_connected(False); self.stu_phone.hide(); self.set_gate(False)
+
+    def sync_phone_ui(self):
+        """Connected: a one-line chip inside the student card. Not connected (and not gated): the QR card below it."""
+        on = bool(self.phone and self.phone.token and self.phone.connected())
+        self.stu_phone.setVisible(on)
+        self.phone_card.setVisible(bool(self.phone and self.phone.token) and not self.phone_gate and not on)
 
     def phone_release(self, flush=True):
         was, self.phone_hold = self.phone_hold, False
@@ -697,7 +712,7 @@ class MainWindow(QWidget):
         remove items there), so the kiosk's own tally never shows: the QR panel fades out and the compact panel fades in."""
         self.phone_gate = False                                      # also stops _phone_tick from unlocking twice
         self.sub.setText(self.sub_ready)
-        self.phone_card.show(); self.last.setText("Waiting for the first item…")
+        self.sync_phone_ui(); self.last.setText("Waiting for the first item…")
         self.touch(); self.start_camera(); self.idle_banner()
         self.tally_top.hide()
         def show_compact():
@@ -710,7 +725,7 @@ class MainWindow(QWidget):
             return self.phone_unlock()
         if self.phone and self.phone.token and self.state == "active":
             was = self.phone_card._connected
-            self.phone_card.set_connected(self.phone.connected())
+            self.phone_card.set_connected(self.phone.connected()); self.sync_phone_ui()
             if was != self.phone_card._connected and not self.banner_timer.isActive(): self.idle_banner()
             if self.phone.connected() and hasattr(self.phone, "push_state"): self.phone.push_state(self.phone_snapshot())
             if time.monotonic() > getattr(self, "_pl_next", 0) and not self.paying:      # a parent may activate Pay Later mid-session
@@ -787,6 +802,9 @@ class MainWindow(QWidget):
                 st = r.get("state")
                 self.student.update({"parent_linked": st != "no_parent", "parent_name": r.get("parent_name") or "",
                                      "pay_later_enabled": st == "ok"})
+                for k in ("pay_later_available", "paylater_available", "pay_later_balance", "available"):
+                    if r.get(k) is not None: self.student["pay_later_available"] = r[k]; break
+                if self.state in ("welcome", "active"): self.show_student()
             if then: then()
         run_async(lambda: self.api.rpc("kiosk_paylater_status", p_rfid=uid), done)
 
@@ -961,10 +979,22 @@ class MainWindow(QWidget):
     def show_student(self):
         s = self.student
         self.stu_name.setText(s["name"])
-        self.stu_bal.setText(self.money(s["balance"]))
+        if self.order["payment"] == "paylater":
+            avail = self.pay_later_available()
+            self.stu_bal.key.setText("Pay Later balance"); self.stu_bal.setText(self.money(avail) if avail is not None else "—")
+        else:
+            self.stu_bal.key.setText("RFID wallet balance"); self.stu_bal.setText(self.money(s["balance"]))
         cap = s.get("daily_cap")
         self.stu_lim.setText(self.money(cap) if cap else "No limit")
         self.student_box.show(); self.student_timer.stop()
+
+    def pay_later_available(self):
+        s = self.student or {}
+        for k in ("pay_later_available", "paylater_available", "pay_later_balance"):
+            if s.get(k) is not None:
+                try: return float(s[k])
+                except (TypeError, ValueError): pass
+        return None
 
     def clear_student(self):
         self.student_box.hide()
@@ -976,7 +1006,9 @@ class MainWindow(QWidget):
             return self.fail(self.reason_text(res))
         self.idle_timer.stop()                               # paid: nothing left to time out
         self.stop_camera()                                   # the order is done: camera off until the next student taps
-        self.student["balance"] = res["new_balance"]; self.student["remaining_today"] = res.get("remaining_today")
+        if res.get("new_balance") is not None: self.student["balance"] = res["new_balance"]
+        if res.get("pay_later_available") is not None: self.student["pay_later_available"] = res["pay_later_available"]
+        self.student["remaining_today"] = res.get("remaining_today")
         self.show_student()
         self.order = empty_order(self.order["payment"]); self._prev_qty = {}
         self.render_order()

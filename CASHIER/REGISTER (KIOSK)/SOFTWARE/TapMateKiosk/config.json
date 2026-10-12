@@ -10,7 +10,7 @@
   "confirm_frames": 4,
   "image_size": 480,
   "device": "auto",
-  "idle_seconds": 30,
+  "idle_seconds": 90,
   "confirm_seconds": 30,
   "rfid": {
     "mode": "keyboard",

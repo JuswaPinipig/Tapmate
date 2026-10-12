@@ -7,9 +7,11 @@
 const SUPABASE_URL = "https://inoafkspgsxzxarzboqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_fNWXtU_dOeKnc34whEzvJQ_NVDJhK7z";
 
-// After "Order paid" the phone goes back to the student's wallet page (path from THIS page: CASHIER/ORDER TALLY + PIN/).
-const WALLET_URL = new URL("../../STUDENT/STUDENT WALLET/studentwallet.html", location.href).href;
-const PAID_SCREEN_MS = 4000;   // how long "Order paid" stays on screen before redirecting
+// After "Order paid" the phone goes to the login page (path from THIS page: CASHIER/ORDER TALLY + PIN/).
+// Adjust LOGIN_PATH if login.html lives somewhere else in your site.
+const LOGIN_PATH = "../../login.html";
+const LOGIN_URL = new URL(LOGIN_PATH, location.href).href;
+const PAID_SCREEN_MS = 10000;  // how long "Order paid" stays on screen (matches the kiosk's 10 s receipt) before redirecting
 
 const code = new URLSearchParams(location.search).get("s");
 const $ = (id) => document.getElementById(id);
@@ -179,7 +181,7 @@ $("cxYes").onclick = async () => {
 /* ---------- closing / leaving the page ends the kiosk session ---------- */
 // Fires when the tab is closed, the page is navigated away from or reloaded. A normal fetch would be cancelled by the
 // browser at that moment, so "keepalive" lets this one request finish after the page is gone.
-// It is skipped once the order is paid (the page then redirects to the wallet on purpose) or the session already ended.
+// It is skipped once the order is paid (the page then redirects to the login page on purpose) or the session already ended.
 let leaving = false;
 function endSessionOnLeave() {
     if (leaving || ended || paid || !code) return;
@@ -248,7 +250,7 @@ function onResult(r) {
         $("paidAmt").textContent = money(r.total);
         $("paidBal").textContent = r.method === "paylater" ? "Paid with Pay Later" : (r.new_balance != null ? "New balance " + money(r.new_balance) : "");
         $("paid").classList.add("on");
-        setTimeout(() => { location.replace(WALLET_URL); }, PAID_SCREEN_MS);   // back to the student's wallet
+        setTimeout(() => { location.replace(LOGIN_URL); }, PAID_SCREEN_MS);   // on to the login page
         return;
     }
     if (r.reason === "bad_pin") {
