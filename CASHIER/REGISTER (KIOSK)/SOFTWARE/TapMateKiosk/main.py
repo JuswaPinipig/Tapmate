@@ -1,5 +1,5 @@
 """TapMate Cashier Kiosk. Launched from the website via tapmate-kiosk://launch?token=..."""
-import os, sys, time
+import html, os, sys, time
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 
@@ -245,8 +245,9 @@ class MainWindow(QWidget):
         self.video = QLabel("Camera off"); self.video.setObjectName("video")
         self.video.setAlignment(Qt.AlignCenter); self.video.setMinimumSize(560, 380)
         self.video.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        strip = QFrame(); strip.setObjectName("strip"); sl = QHBoxLayout(strip); sl.setContentsMargins(14, 10, 14, 10)
-        self.last = QLabel("Waiting for the first item…"); self.last.setObjectName("muted"); sl.addWidget(self.last)
+        self.strip = strip = QFrame(); strip.setObjectName("strip"); sl = QHBoxLayout(strip); sl.setContentsMargins(14, 10, 14, 10)
+        self.last = QLabel(""); self.last.setObjectName("muted"); self.last.setWordWrap(True); sl.addWidget(self.last)
+        strip.hide()                                          # only shown for camera / AI / phone-link warnings, never for detections
         cv.addWidget(bar); cv.addWidget(sub); cv.addWidget(self.video, 1); cv.addWidget(strip)
         root.addWidget(content, 1)
 
@@ -297,8 +298,9 @@ class MainWindow(QWidget):
         self.clear_btn = QPushButton("Clear order"); self.clear_btn.setObjectName("ghost")
         self.clear_btn.setFocusPolicy(Qt.NoFocus); self.clear_btn.clicked.connect(self.clear_order); tb.addWidget(self.clear_btn)
         self.total = QLabel(self.money(0)); self.total.hide()          # the total is no longer shown on the kiosk (render_order still sets it)
-        self.banner = QLabel(); self.banner.setAlignment(Qt.AlignCenter); self.banner.setWordWrap(True); self.banner.setMinimumHeight(64)
-        tb.addWidget(self.banner); self.show_banner("Waiting for the cashier session…", "busy")
+        self.banner = QLabel(); self.banner.setAlignment(Qt.AlignCenter); self.banner.setWordWrap(True)
+        self.banner.setFixedWidth(280); self.banner.setMinimumHeight(180)          # squarish card
+        tb.addWidget(self.banner, 0, Qt.AlignHCenter); self.show_banner("Waiting for the cashier session…", "busy")
         p.addWidget(self.tally_box, 1)
         self.gate = GatePanel(); self.gate.hide(); p.addWidget(self.gate, 1)
         root.addWidget(panel)
@@ -311,31 +313,30 @@ class MainWindow(QWidget):
         if hasattr(self, "prompt"): self.prompt.setGeometry(self.rect())
         if hasattr(self, "confirm"): self.confirm.setGeometry(self.rect())
 
+    def note(self, text=""):
+        """Warning line under the camera. Empty text hides the strip completely."""
+        self.last.setText(text); self.strip.setVisible(bool(text))
+
     def money(self, v):
         return f"{self.cur}{float(v):,.2f}"
 
-    def show_banner(self, text, kind="idle", secs=0):
+    def show_banner(self, text, kind="idle", secs=0, rich=False):
         bg, fg = BANNER[kind]
+        self.banner.setTextFormat(Qt.RichText if rich else Qt.PlainText)
         self.banner.setText(text)
-        self.banner.setStyleSheet(f"background:{bg}; color:{fg}; border-radius:14px; padding:10px; font-size:15px; font-weight:700;")
+        self.banner.setStyleSheet(f"background:{bg}; color:{fg}; border-radius:20px; padding:16px; font-size:17px; font-weight:700;")
         self.banner_timer.stop()
         if secs: self.banner_timer.start(int(secs * 1000))
 
     def idle_banner(self):
         if self.locked or self.paying or self.state != "active": return
         if self.phone_hold: return self.show_banner("Enter your PIN on your phone to finalize your payment…", "busy")
-        if self.order["items"]: return self.show_banner(self.scanned_text(), "ok")
-        self.show_banner("Waiting for items to scan…", "idle")
+        self.show_banner("Waiting for an item to be scanned…", "idle")
 
-    def scanned_text(self):
-        """'<item> has been scanned' / '<a>, <b> and <c> have been scanned' for everything currently in the order."""
-        names = []
-        for it in self.order["items"]:
-            p = self.products.get(it["product_id"])
-            if p and p["name"] not in names: names.append(p["name"])
-        if not names: return "Waiting for items to scan…"
-        who = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
-        return f"{who} {'has' if len(names) == 1 else 'have'} been scanned"
+    def scanned_html(self, name):
+        """Banner content right after a scan: which item was scanned (no price)."""
+        return (f"<div style='font-size:40px'>✔</div><div style='font-size:21px'>{html.escape(name)}</div>"
+                f"<div style='font-size:14px; font-weight:600'>has been scanned</div>")
 
     def toggle_full(self):
         self.showNormal() if self.isFullScreen() else self.showFullScreen()
@@ -433,7 +434,7 @@ class MainWindow(QWidget):
         self.state = "active"; self.idle_timer.start()
         self.set_gate(bool(self.phone and self.phone.token and phone.settings(self.cfg).get("required", True)))
         self.sync_phone_ui()
-        self.last.setText("Waiting for your phone…" if self.phone_gate else "Waiting for the first item…")
+        self.note()
         self.fade_to(self.main_page); self.idle_banner()
         # start the camera once the fade is nearly done, so loading it can't stutter the animation
         QTimer.singleShot(FADE_MS - 150, lambda: self.start_camera() if self.state == "active" and not self.locked else None)
@@ -495,7 +496,7 @@ class MainWindow(QWidget):
         except ApiError: pass
 
     def on_ai_status(self, msg, is_err):
-        if is_err: self.last.setText("⚠ " + msg)                  # camera / AI problems show under the video
+        self.note("⚠ " + msg if is_err else "")                  # only camera / AI problems show under the video
         self.ai_state.setText(("   ⚠ " if is_err else "   ● ") + msg)
         self.ai_state.setStyleSheet("color:#FFB4B4;" if is_err else "color:#9FE6B8;")
 
@@ -509,8 +510,9 @@ class MainWindow(QWidget):
         if self.paying or self.phone_hold: self.queued.append(label); return       # added after the student finishes confirming
         pid = self.label_map.get(norm(label))
         if not pid:
-            self.last.setText(f"Detected “{label}” – not linked to any product (set products.yolo_label)."); return
-        self.last.setText(f"Camera added: {self.products[pid]['name']}")
+            self.note(f"⚠ “{label}” is not linked to any product (set products.yolo_label)."); return
+        self.note()
+        self.show_banner(self.scanned_html(self.products[pid]["name"]), "ok", 3, rich=True)   # then falls back to "Waiting for an item…"
         self.pending += 1
         run_async(lambda: self.api.rpc("kiosk_add_item", p_product_id=pid, p_qty=1, p_ai=True), self.after_mutation)
 
@@ -576,8 +578,10 @@ class MainWindow(QWidget):
 
     # ---------- shared order (website <-> kiosk) ----------
     def poll_order(self):
+        if self.polling and time.monotonic() - getattr(self, "_poll_t0", 0) > 25:
+            self.polling = False; self.api.reset()          # a poll that never came back must not block polling forever
         if self.polling or self.pending or self.locked: return
-        self.polling = True
+        self.polling = True; self._poll_t0 = time.monotonic()
         run_async(lambda: self.api.rpc("kiosk_get_order"), self.on_poll)
 
     def on_poll(self, res, err):
@@ -651,10 +655,10 @@ class MainWindow(QWidget):
         try:
             srv = phone.make_server(self.cfg); srv.start()
         except OSError:
-            self.last.setText(f"⚠ Phone link unavailable: port {ps['port']} is in use. Change phone.port in config.json.")
+            self.note(f"⚠ Phone link unavailable: port {ps['port']} is in use. Change phone.port in config.json.")
             return
         if ps["mode"] == "web" and not str(ps.get("page_url") or "").startswith("http"):
-            self.last.setText("⚠ Phone link: set phone.page_url in config.json to your order_tally_PIN.html address.")
+            self.note("⚠ Phone link: set phone.page_url in config.json to your order_tally_PIN.html address.")
         self.phone = srv
         srv.hub.request.connect(self.on_phone_request)
         self.phone_tick.start()
@@ -712,7 +716,7 @@ class MainWindow(QWidget):
         remove items there), so the kiosk's own tally never shows: the QR panel fades out and the compact panel fades in."""
         self.phone_gate = False                                      # also stops _phone_tick from unlocking twice
         self.sub.setText(self.sub_ready)
-        self.sync_phone_ui(); self.last.setText("Waiting for the first item…")
+        self.sync_phone_ui(); self.note()
         self.touch(); self.start_camera(); self.idle_banner()
         self.tally_top.hide()
         def show_compact():
@@ -804,6 +808,8 @@ class MainWindow(QWidget):
                                      "pay_later_enabled": st == "ok"})
                 for k in ("pay_later_available", "paylater_available", "pay_later_balance", "available"):
                     if r.get(k) is not None: self.student["pay_later_available"] = r[k]; break
+                for k in ("pay_later_limit", "paylater_limit", "pay_later_cap", "credit_limit", "limit"):
+                    if r.get(k) is not None: self.student["pay_later_limit"] = r[k]; break
                 if self.state in ("welcome", "active"): self.show_student()
             if then: then()
         run_async(lambda: self.api.rpc("kiosk_paylater_status", p_rfid=uid), done)
@@ -984,8 +990,15 @@ class MainWindow(QWidget):
             self.stu_bal.key.setText("Pay Later balance"); self.stu_bal.setText(self.money(avail) if avail is not None else "—")
         else:
             self.stu_bal.key.setText("RFID wallet balance"); self.stu_bal.setText(self.money(s["balance"]))
-        cap = s.get("daily_cap")
-        self.stu_lim.setText(self.money(cap) if cap else "No limit")
+        if self.order["payment"] == "paylater":
+            self.stu_lim.key.setText("Pay Later limit")
+            try: lim = float(s["pay_later_limit"])
+            except (KeyError, TypeError, ValueError): lim = None
+            self.stu_lim.setText(self.money(lim) if lim is not None else "—")
+        else:
+            cap = s.get("daily_cap")
+            self.stu_lim.key.setText("Today's spending limit")
+            self.stu_lim.setText(self.money(cap) if cap else "No limit")
         self.student_box.show(); self.student_timer.stop()
 
     def pay_later_available(self):

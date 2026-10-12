@@ -92,3 +92,12 @@
 04:18:48 session registered
 04:19:12 phone connected
 04:19:13 phone phase -> browse
+04:28:43 web phone link started; page_url='https://juswapinipig.github.io/Tapmate/CASHIER/ORDER%20TALLY%20%2B%20PIN/order_tally_PIN.html'
+04:28:48 session registered
+04:28:57 phone connected
+04:28:59 phone phase -> browse
+04:29:20 phone chose payment: paylater
+04:29:22 phone chose payment: rfid
+04:29:25 phone chose payment: paylater
+04:29:27 phone chose payment: rfid
+04:29:28 phone chose payment: paylater
