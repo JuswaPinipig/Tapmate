@@ -61,29 +61,40 @@ header .brand {
     color: var(--gold-lt)
 }
 
-/* the logo has its own colours, so it sits on a white plate over the maroon header */
+/* TapMate logo: no plate, it floats freely over the header */
 .logoPlate {
-    display: inline-flex;
-    align-items: center;
-    background: #fff;
-    border-radius: 16px;
-    padding: 6px 12px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, .18)
+    display: flex;
+    flex-direction: column;
+    align-items: center
 }
 
 .logoPlate img {
     display: block;
-    height: 42px;
+    height: 58px;
     width: auto;
-    max-width: 62vw
+    max-width: 62vw;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, .35)) drop-shadow(0 6px 8px rgba(0, 0, 0, .35));
+    animation: float 3.2s ease-in-out infinite
+}
+
+.logoPlate::after {
+    content: "";
+    width: 52px;
+    height: 6px;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .3);
+    filter: blur(2px);
+    animation: floatShadow 3.2s ease-in-out infinite
 }
 
 .logoPlate .brandtxt {
     display: none;
     font-weight: 800;
-    letter-spacing: .14em;
-    font-size: 15px;
-    color: var(--maroon)
+    letter-spacing: .18em;
+    font-size: 20px;
+    color: var(--gold-lt);
+    animation: float 3.2s ease-in-out infinite
 }
 
 .logoPlate.noimg img {
@@ -94,11 +105,91 @@ header .brand {
     display: block
 }
 
-header .who {
-    font-size: 22px;
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0)
+    }
+
+    50% {
+        transform: translateY(-8px)
+    }
+}
+
+@keyframes floatShadow {
+
+    0%,
+    100% {
+        transform: scaleX(1);
+        opacity: .55
+    }
+
+    50% {
+        transform: scaleX(.65);
+        opacity: .25
+    }
+}
+
+/* whose account is this: the first thing the student sees */
+header {
+    background: linear-gradient(180deg, var(--maroon-dk), var(--maroon));
+    padding: calc(12px + env(safe-area-inset-top)) 16px 16px
+}
+
+.acct {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(241, 223, 160, .35);
+    text-align: left
+}
+
+.avatar {
+    flex: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(#E3C458, var(--gold));
+    color: var(--maroon-dk);
+    font-size: 24px;
     font-weight: 800;
-    margin-top: 10px;
-    min-height: 1.4em
+    display: flex;
+    align-items: center;
+    justify-content: center
+}
+
+.acct .meta {
+    min-width: 0
+}
+
+.acct .lbl {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gold-lt)
+}
+
+header .who {
+    font-size: 23px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-top: 2px;
+    overflow-wrap: anywhere
+}
+
+@media (prefers-reduced-motion:reduce) {
+
+    .logoPlate img,
+    .logoPlate .brandtxt,
+    .logoPlate::after {
+        animation: none
+    }
 }
 
 main {
@@ -124,12 +215,6 @@ main {
     gap: 8px
 }
 
-.title h1 .ico {
-    width: 26px;
-    height: 26px;
-    object-fit: contain
-}
-
 .empty .bigcart {
     display: block;
     width: 64px;
@@ -150,8 +235,8 @@ main {
 
 .hint {
     color: var(--muted);
-    font-size: 14px;
-    margin: 2px 4px 12px
+    font-size: 13.5px;
+    margin: 0 4px 12px
 }
 
 .empty {
@@ -524,7 +609,7 @@ footer b {
 }
 
 .payrow {
-    margin: 0 4px 14px
+    margin: 8px 0 12px
 }
 
 .paylabel {
@@ -691,4 +776,27 @@ footer b {
     border-radius: 23px;
     color: var(--muted);
     font-weight: 700
+}
+
+/* ---------- mobile ---------- */
+#app {
+    height: 100dvh
+}
+
+@supports not (height:100dvh) {
+    #app {
+        height: 100%
+    }
+}
+
+@media (max-width:380px) {
+    header .who {
+        font-size: 20px
+    }
+
+    .avatar {
+        width: 44px;
+        height: 44px;
+        font-size: 20px
+    }
 }

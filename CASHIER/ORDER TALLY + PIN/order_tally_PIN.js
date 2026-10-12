@@ -50,6 +50,7 @@ function render() {
     if (s === sig) return; sig = s;
     const items = V.items || [];
     $("who").textContent = V.student || "\u00a0";
+    $("avatar").textContent = (V.student || "").trim().charAt(0).toUpperCase();
     $("total").textContent = money(V.total || 0);
     const n = items.reduce((a, i) => a + i.qty, 0);
     $("count").textContent = n + (n === 1 ? " item" : " items");

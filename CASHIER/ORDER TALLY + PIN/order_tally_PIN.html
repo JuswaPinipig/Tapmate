@@ -17,15 +17,19 @@
                 <img id="logo" src="Assets/tapmate%20logo.png" alt="TapMate">
                 <span class="brandtxt" id="brandtxt">TAPMATE</span>
             </div>
-            <div class="who" id="who">&nbsp;</div>
+            <div class="acct">
+                <div class="avatar" id="avatar" aria-hidden="true"></div>
+                <div class="meta">
+                    <div class="lbl">Signed in as</div>
+                    <div class="who" id="who">&nbsp;</div>
+                </div>
+            </div>
         </header>
         <main>
             <div class="title">
-                <h1><img class="ico" src="Assets/shopping-cart.png" alt="" onerror="this.remove()">Order tally</h1>
+                <h1>Order tally</h1>
                 <span class="pill" id="count">0 items</span>
             </div>
-            <div class="hint">Scanned something by mistake? Remove it here. When you're done, tap your RFID card at the
-                kiosk to confirm your payment.</div>
             <div class="payrow" id="payrow">
                 <div class="paylabel">Payment method</div>
                 <div class="seg" id="seg">
@@ -35,6 +39,7 @@
                 </div>
                 <div class="paynote" id="paynote"></div>
             </div>
+            <div class="hint">Wrong item? Remove it here. Tap your RFID card at the kiosk to pay.</div>
             <div id="list"></div>
             <button type="button" class="cancelTx" id="cancelTx">Cancel transaction</button>
         </main>
