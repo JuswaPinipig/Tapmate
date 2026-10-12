@@ -17,6 +17,11 @@ const MIN_LENGTH = 4;            // ignore very short accidental input
 const RESET_AFTER = 3000;        // go back to "waiting" after a successful login
 const NOTICE_RESET_AFTER = 6000; // error boxes stay longer so they can be read
 const IS_TOUCH = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;   // phone / tablet
+// Mobile view (same breakpoint as the phone layout in login.css): no RFID tap, manual login only
+const MOBILE_MQ = window.matchMedia("(max-width: 520px)");
+const isMobile = () => MOBILE_MQ.matches;
+const homeView = () => (isMobile() ? "email" : "tap");
+const homeState = () => (isMobile() ? "email" : "waiting");
 const PIN_IDLE_MS = IS_TOUCH ? 30000 : 15000;   // PIN screen fades back to "tap your card" after this long untouched (longer on touch)
 const EMAIL_IDLE_MS = 60000;     // email form fades back to "tap your card" after this long untouched
 const EMAIL_RE = /^[^@\s]+@sjc\.edu\.ph$/i;   // school emails only
@@ -175,6 +180,7 @@ pinAreaEl.addEventListener("pointerup", () => { if (state === "pin") openPinKeyb
 // 4a. LOGIN METHOD: tabs + swipe  (RFID | Manual login)
 // ------------------------------------------------------------
 function goRfid() {
+    if (isMobile()) return;               // no RFID on mobile
     if (state === "busy" || state === "done") return;
     if (view === "email") exitEmail();
     else if (view === "parent") exitParent();
@@ -205,6 +211,7 @@ studentLinkEl.addEventListener("click", () => {
 // Swipe left / right on the panes. The panes follow the finger, then snap.
 let drag = null;
 swipeEl.addEventListener("pointerdown", (e) => {
+    if (isMobile()) return;                                // no swiping on mobile
     if (state === "busy" || state === "done" || view === "pin") return;   // no swiping while a PIN is being entered
     if (e.target.closest("input, button, a")) return;      // never hijack typing or taps
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, t: Date.now(), active: false };
@@ -273,8 +280,9 @@ function openEmail() {
 function exitEmail() {
     clearTimeout(idleTimer);
     clearEmailFields();
-    state = "waiting";
     clearStatusNow();
+    if (isMobile()) { state = "email"; return; }   // mobile has nowhere else to go
+    state = "waiting";
     setView("tap");
 }
 
@@ -378,6 +386,7 @@ function openParent() {
 function exitParent() {
     clearTimeout(idleTimer);
     clearParentFields();
+    if (isMobile()) { openEmail(); return; }       // back to the school email form
     state = "waiting";
     clearStatusNow();
     setView("tap");
@@ -464,6 +473,7 @@ async function submitParent(e) {
 // 5. STEP 1: CARD TAPPED
 // ------------------------------------------------------------
 async function handleScan(uid) {
+    if (isMobile()) return;               // card taps are ignored on mobile
     if (state === "busy" || state === "done") return;
 
     // A new tap always starts over (also replaces a half-typed PIN or the email form)
@@ -522,9 +532,10 @@ function exitPin() {
     currentUid = null;
     parentCred = null;
     pin = "";
-    state = "waiting";
+    state = homeState();
     clearStatusNow();
-    setView("tap");
+    setView(homeView());
+    if (isMobile()) armEmailIdle();
 }
 
 function addDigit(d) {
@@ -641,7 +652,7 @@ function loginSuccess(res) {
     currentUid = null;
     pin = "";
     clearTimeout(idleTimer);
-    setView("tap");
+    setView(homeView());
     lockDots(true);                       // no swiping or dots while "Redirecting…" (or the success message)
 
     const welcome = "Welcome, " + profile.full_name;
@@ -690,8 +701,8 @@ function failWithNotice(text) {
     pin = "";
     clearEmailFields();
     clearParentFields();
-    if (view !== "tap") setView("tap");
-    state = "waiting";
+    if (view !== homeView()) setView(homeView());
+    state = homeState();
     noticeEl.textContent = text;
     show("err");
 }
@@ -831,7 +842,7 @@ function clearStatusNow() {
 }
 
 function reset() {
-    state = "waiting";
+    state = homeState();
     lockDots(view === "pin");
     tapEl.className = "tap waiting";
     statusEl.classList.remove("open"); // panel smoothly shrinks back
@@ -848,3 +859,11 @@ function reset() {
 }
 
 renderDots();
+
+// Start on the manual login on mobile; follow the screen if it crosses the breakpoint
+MOBILE_MQ.addEventListener("change", () => {
+    if (state === "busy" || state === "done" || state === "pin") return;
+    if (isMobile()) { if (view === "tap") openEmail(); }
+    else if (view === "email" || view === "parent") exitEmail();
+});
+if (isMobile()) openEmail();

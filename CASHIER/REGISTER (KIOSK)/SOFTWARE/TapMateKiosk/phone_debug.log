@@ -75,3 +75,16 @@
 00:29:39 phone connected
 00:29:40 phone phase -> browse
 00:30:22 phone asked to cancel the transaction
+01:25:51 web phone link started; page_url='https://juswapinipig.github.io/Tapmate/CASHIER/ORDER%20TALLY%20%2B%20PIN/order_tally_PIN.html'
+01:25:55 session registered
+01:26:17 phone connected
+01:26:18 phone phase -> browse
+01:27:15 phone asked to cancel the transaction
+03:44:30 web phone link started; page_url='https://juswapinipig.github.io/Tapmate/CASHIER/ORDER%20TALLY%20%2B%20PIN/order_tally_PIN.html'
+03:45:21 session registered
+03:45:27 web phone link started; page_url='https://juswapinipig.github.io/Tapmate/CASHIER/ORDER%20TALLY%20%2B%20PIN/order_tally_PIN.html'
+03:45:49 session registered
+03:46:17 phone connected
+03:46:18 phone phase -> browse
+03:47:08 phone phase -> pin
+03:47:13 phone sent a PIN

@@ -746,3 +746,17 @@ body {
 .kb .pin-hint {
     display: none;
 }
+
+/* ============================================================
+   Mobile: manual login only (no RFID tap screen, no page dots).
+   The PIN step still lives in the first pane, so only the tap
+   circle and the dots are hidden.
+   ============================================================ */
+@media (max-width: 520px) {
+
+    .tap,
+    .tap[hidden],
+    #tabs {
+        display: none !important;
+    }
+}
