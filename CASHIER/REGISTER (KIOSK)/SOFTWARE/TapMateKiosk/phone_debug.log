@@ -70,3 +70,8 @@
 01:56:33 phone phase -> browse
 01:56:35 phone phase -> pin
 01:56:38 phone sent a PIN
+00:29:16 web phone link started; page_url='https://juswapinipig.github.io/Tapmate/CASHIER/ORDER%20TALLY%20%2B%20PIN/order_tally_PIN.html'
+00:29:25 session registered
+00:29:39 phone connected
+00:29:40 phone phase -> browse
+00:30:22 phone asked to cancel the transaction

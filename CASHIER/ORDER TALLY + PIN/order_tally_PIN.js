@@ -176,6 +176,25 @@ $("cxYes").onclick = async () => {
     } finally { yes.disabled = false; }
 };
 
+/* ---------- closing / leaving the page ends the kiosk session ---------- */
+// Fires when the tab is closed, the page is navigated away from or reloaded. A normal fetch would be cancelled by the
+// browser at that moment, so "keepalive" lets this one request finish after the page is gone.
+// It is skipped once the order is paid (the page then redirects to the wallet on purpose) or the session already ended.
+let leaving = false;
+function endSessionOnLeave() {
+    if (leaving || ended || paid || !code) return;
+    leaving = true;
+    try {
+        fetch(SUPABASE_URL + "/rest/v1/rpc/kiosk_phone_remove", {
+            method: "POST", keepalive: true,
+            headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json" },
+            body: JSON.stringify({ p_code: code, p_pid: CANCEL_PID, p_all: true })
+        }).catch(() => { });
+    } catch (e) { /* nothing more we can do while the page is closing */ }
+}
+window.addEventListener("pagehide", endSessionOnLeave);
+window.addEventListener("pageshow", (e) => { if (e.persisted) leaving = false; });   // page restored from the back/forward cache
+
 /* ---------- PIN entry ---------- */
 function buildPad() {
     const pad = $("pad"), keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Cancel", "0", "\u232b"];
