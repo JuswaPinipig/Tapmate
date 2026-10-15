@@ -265,4 +265,29 @@
     }
 
     loadSettings(); load(); setInterval(load, cfg.POLL_MS); update();
+    /* ---------- mobile bottom bar: follows the scroll (down = slides away, up = slides back) ---------- */
+    (function () {
+        var bar = document.getElementById("tabbar"), mqm = window.matchMedia("(max-width:760px)");
+        if (!bar) return;
+        var lastY = window.pageYOffset, off = 0, raf = 0, snapT = 0;
+        function H() { return bar.offsetHeight + 12; }
+        function paint() { raf = 0; bar.style.transform = off ? "translate3d(0," + off + "px,0)" : ""; }
+        function onScroll() {
+            if (!mqm.matches) return;
+            var y = window.pageYOffset, max = document.documentElement.scrollHeight - window.innerHeight;
+            if (y < 0 || y > max) { lastY = Math.max(0, Math.min(y, max)); return; }   // ignore iOS rubber-band bounce
+            var d = y - lastY; lastY = y;
+            if (y <= 0) off = 0; else off = Math.max(0, Math.min(H(), off + d));
+            bar.classList.add("dragging");
+            if (!raf) raf = requestAnimationFrame(paint);
+            clearTimeout(snapT);
+            snapT = setTimeout(function () {   // scrolling stopped: settle fully open or fully hidden
+                bar.classList.remove("dragging");
+                off = off > H() / 2 ? H() : 0;
+                paint();
+            }, 140);
+        }
+        window.addEventListener("scroll", onScroll, { passive: true });
+        (mqm.addEventListener ? mqm.addEventListener.bind(mqm, "change") : mqm.addListener.bind(mqm))(function () { off = 0; bar.classList.remove("dragging"); paint(); });
+    })();
 })();
