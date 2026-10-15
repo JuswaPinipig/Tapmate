@@ -15,11 +15,13 @@
         try { sessionStorage.removeItem(SESSION_KEY); } catch (_) { }
         window.location.replace(cfg.LOGIN_URL);
     }
-    $("signout").onclick = async function () {
+    async function signOut() {
         var t = getToken();
         if (t) { try { await db.rpc("card_logout", { p_token: t }); } catch (_) { } }
         goToLogin();
-    };
+    }
+    $("signout").onclick = signOut;
+    $("signout-m").onclick = signOut;
 
     /* ---------- formatting ---------- */
     function peso(n) { return Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -53,7 +55,6 @@
         }
         syncAria();
     };
-    $("menu").onclick = function () { shell.classList.add("open"); syncAria(); };
     $("scrim").onclick = function () { shell.classList.remove("open"); syncAria(); };
     syncAria();
 
@@ -64,7 +65,7 @@
         var v = (location.hash || "#wallet").slice(1);
         if (VIEWS.indexOf(v) < 0) v = "wallet";
         VIEWS.forEach(function (n) { $("v-" + n).hidden = n !== v; });
-        document.querySelectorAll(".nav a[data-view]").forEach(function (a) {
+        document.querySelectorAll(".nav a[data-view], .tabbar a[data-view]").forEach(function (a) {
             if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
         });
         if (mq.matches) { shell.classList.remove("open"); syncAria(); }
@@ -121,6 +122,7 @@
     profileEl.addEventListener("mousedown", function (e) { if (e.target === profileEl) closeProfile(); });
     profileEl.querySelector("[data-close]").onclick = closeProfile;
     $("open-profile").onclick = function () { openModal(profileEl); };
+    $("open-profile-m").onclick = function () { openModal(profileEl); };
 
     /* ---------- data ---------- */
     async function refresh() {
@@ -160,7 +162,7 @@
         $("pf-name").textContent = p.full_name;
         $("pf-sid").textContent = p.student_id ? "Student ID " + p.student_id : "";
         $("pf-email").textContent = p.email || "–";
-        paintAvatar($("side-av"), p); paintAvatar($("pf-av"), p);
+        paintAvatar($("side-av"), p); paintAvatar($("m-av"), p); paintAvatar($("pf-av"), p);
     }
     // Daily limit bar: shows today's spending against the school-assigned daily limit
     function renderLimit(p) {
