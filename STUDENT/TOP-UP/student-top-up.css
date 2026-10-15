@@ -610,7 +610,8 @@ li .via {
 }
 
 .mbar,
-.scrim {
+.scrim,
+.tabbar {
     display: none
 }
 
@@ -649,59 +650,197 @@ li .via {
     }
 }
 
+/* ===== Mobile: no cabinet. Slim top bar + bottom bar with three buttons ===== */
 @media(max-width:760px) {
-    .side {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 248px;
-        transform: translateX(-100%);
-        transition: transform .3s cubic-bezier(.4, 0, .2, 1)
-    }
 
-    .shell.collapsed .side {
-        width: 248px
-    }
-
-    .shell.collapsed .lbl {
-        opacity: 1;
-        max-width: 160px
-    }
-
-    .shell.collapsed .logo {
-        opacity: 1;
-        max-width: 150px;
-        padding-left: 6px
-    }
-
-    .shell.open .side {
-        transform: none
-    }
-
+    .side,
     .scrim {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(43, 35, 38, .45);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .3s;
-        z-index: 20
-    }
-
-    .shell.open .scrim {
-        opacity: 1;
-        pointer-events: auto
+        display: none !important
     }
 
     .mbar {
         display: flex;
         align-items: center;
-        gap: 8px;
+        justify-content: space-between;
         height: 56px;
-        padding: 0 12px;
-        background: var(--surface);
-        border-bottom: 1px solid var(--gray-soft)
+        padding: 0 16px;
+        background: var(--maroon-deep);
+        border-bottom: 3px solid var(--gold)
+    }
+
+    .mlogo {
+        height: 30px;
+        width: auto;
+        max-width: 150px;
+        object-fit: contain
+    }
+
+    .m-av {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        border-radius: 12px;
+        cursor: pointer
+    }
+
+    .m-av:focus-visible,
+    .tb-btn:focus-visible,
+    .tb-out:focus-visible {
+        outline: 3px solid var(--gold);
+        outline-offset: 2px
+    }
+
+    .m-av .av {
+        width: 38px;
+        height: 38px
+    }
+
+    main {
+        padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px))
+    }
+
+    .toast {
+        bottom: calc(112px + env(safe-area-inset-bottom, 0px))
+    }
+
+    .tabbar {
+        display: grid;
+        grid-template-columns: 1fr 1.25fr 1fr;
+        align-items: start;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(96px + env(safe-area-inset-bottom, 0px));
+        padding: 0 18px env(safe-area-inset-bottom, 0px);
+        z-index: 30;
+        color: var(--on-maroon);
+        filter: drop-shadow(0 -4px 12px rgba(43, 35, 38, .18))
+    }
+
+    .tb-curve {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1
+    }
+
+    .tb-curve .fill {
+        fill: var(--maroon-deep)
+    }
+
+    .tb-curve .edge {
+        fill: none;
+        stroke: var(--gold);
+        stroke-width: 3;
+        vector-effect: non-scaling-stroke
+    }
+
+    .tb-btn {
+        display: grid;
+        justify-items: center;
+        gap: 3px;
+        color: inherit;
+        text-decoration: none;
+        font: 500 11px Figtree, sans-serif;
+        position: relative
+    }
+
+    .tb-c {
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .14);
+        transition: transform .15s
+    }
+
+    .tb-btn:active .tb-c {
+        transform: scale(.94)
+    }
+
+    .tb-c svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round
+    }
+
+    .tb-btn.side-l,
+    .tb-btn.side-r {
+        margin-top: 28px
+    }
+
+    .tb-btn.side-l .tb-c,
+    .tb-btn.side-r .tb-c {
+        width: 48px;
+        height: 48px
+    }
+
+    .tb-btn.side-l .tb-c svg,
+    .tb-btn.side-r .tb-c svg {
+        width: 22px;
+        height: 22px
+    }
+
+    .tb-btn.mid {
+        margin-top: 6px
+    }
+
+    .tb-btn.mid .tb-c {
+        width: 64px;
+        height: 64px;
+        background: var(--gold);
+        color: var(--ink);
+        box-shadow: 0 0 0 4px var(--maroon-deep), 0 6px 14px rgba(0, 0, 0, .25)
+    }
+
+    .tb-btn.mid .tb-c svg {
+        width: 28px;
+        height: 28px
+    }
+
+    .tb-btn.mid .tb-t {
+        font-weight: 600;
+        color: var(--gold)
+    }
+
+    .tb-out {
+        position: absolute;
+        left: 8px;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: inherit;
+        opacity: .85;
+        cursor: pointer
+    }
+
+    .tb-out svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round
+    }
+
+    .tb-btn[aria-current="page"] .tb-c {
+        background: var(--gold);
+        color: var(--ink)
+    }
+
+    .tb-btn[aria-current="page"] .tb-t {
+        color: var(--gold);
+        font-weight: 600
     }
 }
 

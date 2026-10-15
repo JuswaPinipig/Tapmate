@@ -8,7 +8,8 @@
     /* session */
     function getToken() { try { var s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); return s && s.token || null; } catch (_) { return null; } }
     function goToLogin() { try { sessionStorage.removeItem(SESSION_KEY); } catch (_) { } location.replace(cfg.LOGIN_URL); }
-    $("signout").onclick = async function () { var t = getToken(); if (t) { try { await db.rpc("card_logout", { p_token: t }); } catch (_) { } } goToLogin(); };
+    async function signOut() { var t = getToken(); if (t) { try { await db.rpc("card_logout", { p_token: t }); } catch (_) { } } goToLogin(); }
+    $("signout").onclick = signOut; $("signout-m").onclick = signOut;
 
     /* helpers */
     function peso(n) { return Number(n).toLocaleString(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -20,18 +21,19 @@
         var u = cfg[a.dataset.link];
         if (u) a.setAttribute("href", u); else a.addEventListener("click", function (e) { e.preventDefault(); toast("This page isn't linked yet. Set " + a.dataset.link + " in config.js."); });
     });
-    $("open-profile").onclick = function () { if (cfg.WALLET_URL) location.href = cfg.WALLET_URL; };
+    function toWallet() { if (cfg.WALLET_URL) location.href = cfg.WALLET_URL; }
+    $("open-profile").onclick = toWallet; $("open-profile-m").onclick = toWallet;
 
     /* sidebar */
     var shell = $("shell"), mq = matchMedia("(max-width:760px)");
     try { if (localStorage.getItem("sw_collapsed") === "1") shell.classList.add("collapsed"); } catch (_) { }
     requestAnimationFrame(function () { requestAnimationFrame(function () { shell.classList.remove("init"); }); });
     $("collapse").onclick = function () { if (mq.matches) shell.classList.remove("open"); else { shell.classList.toggle("collapsed"); try { localStorage.setItem("sw_collapsed", shell.classList.contains("collapsed") ? "1" : "0"); } catch (_) { } } };
-    $("menu").onclick = function () { shell.classList.add("open"); };
     $("scrim").onclick = function () { shell.classList.remove("open"); };
 
     /* balance + sidebar profile (same RPC as the wallet) */
-    function paintAvatar(p) { var el = $("side-av"); el.textContent = ""; var ini = ((p.first_name || p.full_name || "?")[0] || "") + ((p.last_name || "")[0] || ""); if (p.avatar_url) { var i = new Image(); i.alt = ""; i.src = p.avatar_url; i.onerror = function () { i.remove(); el.textContent = ini; }; el.appendChild(i); } else el.textContent = ini; }
+    function paintAvatar(p) { ["side-av", "m-av"].forEach(function (id) { paintAv(id, p); }); }
+    function paintAv(id, p) { var el = $(id); el.textContent = ""; var ini = ((p.first_name || p.full_name || "?")[0] || "") + ((p.last_name || "")[0] || ""); if (p.avatar_url) { var i = new Image(); i.alt = ""; i.src = p.avatar_url; i.onerror = function () { i.remove(); el.textContent = ini; }; el.appendChild(i); } else el.textContent = ini; }
     async function load() {
         var t = getToken(); if (!t) return goToLogin();
         var res; try { res = await db.rpc("student_portal", { p_token: t }); if (res.error) throw res.error; } catch (e) { console.error(e); return setErr($("app-err"), "Can't reach TapMate right now."); }
